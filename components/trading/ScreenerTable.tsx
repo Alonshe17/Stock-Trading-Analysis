@@ -211,7 +211,7 @@ export function ScreenerTable({ entries }: { entries: ScreenerEntry[] }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-900/80">
-                <Th label="Symbol" />
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 z-20 bg-gray-900">Symbol</th>
                 <SortTh
                   k="signal" current={sortKey} dir={sortDir} onClick={toggleSort}
                   label={<>Signal<InfoTooltip title="Signal Types" width="w-80" side="bottom">
@@ -339,8 +339,8 @@ export function ScreenerTable({ entries }: { entries: ScreenerEntry[] }) {
               {sorted.map((e) => {
                 const isAdded = !!added[e.symbol];
                 return (
-                  <tr key={e.symbol} className="hover:bg-gray-900/60 transition">
-                    <td className="px-3 py-2">
+                  <tr key={e.symbol} className="hover:bg-gray-900/60 transition group">
+                    <td className="px-3 py-2 sticky left-0 z-10 bg-gray-950 group-hover:bg-gray-900/80 transition">
                       <Link href={`/stock/${e.symbol}`} className="font-semibold text-white hover:text-blue-400">
                         {e.symbol}
                       </Link>
