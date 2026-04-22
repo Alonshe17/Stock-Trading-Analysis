@@ -1,22 +1,29 @@
 import Link from 'next/link';
+import { MobileMenu } from '@/components/trading/MobileMenu';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+      <header className="border-b border-gray-800 px-4 sm:px-6 py-4 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 min-w-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600">
             <span className="text-sm font-bold text-white">S</span>
           </div>
-          <span className="text-lg font-bold text-white">Stock Trading Analysis</span>
+          <span className="text-base sm:text-lg font-bold text-white truncate">Stock Trading Analysis</span>
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href="/dashboard" className="text-gray-400 hover:text-white transition">Dashboard</Link>
-          <Link href="/trends" className="text-amber-400 hover:text-amber-300 transition">Trends</Link>
+
+        {/* Desktop nav */}
+        <nav className="hidden sm:flex items-center gap-4 text-sm">
+          <Link href="/dashboard"       className="text-gray-400 hover:text-white transition">Dashboard</Link>
+          <Link href="/trends"          className="text-amber-400 hover:text-amber-300 transition">Trends</Link>
           <Link href="/recommendations" className="text-gray-400 hover:text-white transition">Picks</Link>
-          <Link href="/screener" className="text-gray-400 hover:text-white transition">Screener</Link>
-          <Link href="/alerts" className="text-gray-400 hover:text-white transition">Alerts</Link>
+          <Link href="/screener"        className="text-gray-400 hover:text-white transition">Screener</Link>
+          <Link href="/watchlist"       className="text-gray-400 hover:text-white transition">Watchlist</Link>
+          <Link href="/alerts"          className="text-gray-400 hover:text-white transition">Alerts</Link>
         </nav>
+
+        {/* Mobile hamburger */}
+        <MobileMenu />
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 text-center">
