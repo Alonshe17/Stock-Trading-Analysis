@@ -1,21 +1,38 @@
 import { getCandles } from '@/lib/finnhub';
 import { calcMarketRegime } from '@/lib/analysis';
 import { runScreener } from '@/lib/screener';
+import { getScreenerCache, getSGTDate, formatSGTTime } from '@/lib/screenerCache';
 import { MarketRegime } from '@/components/trading/MarketRegime';
 import { ScreenerTable } from '@/components/trading/ScreenerTable';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
 async function getData() {
   const apiKey = process.env.FINNHUB_API_KEY;
-  if (!apiKey) return { marketRegime: 'BULLISH' as const, results: [] };
+  if (!apiKey) return { marketRegime: 'BULLISH' as const, results: [], source: 'none' as const, refreshedAt: null };
 
+  const sgtDate = getSGTDate();
+
+  // ── Try cache first ──────────────────────────────────────────────────────
+  const cached = await getScreenerCache(sgtDate);
+  if (cached && Array.isArray(cached.results) && cached.results.length > 0) {
+    return {
+      marketRegime: cached.market_regime as 'BULLISH' | 'CAUTION' | 'BEARISH',
+      results: cached.results,
+      source: 'cache' as const,
+      refreshedAt: cached.refreshed_at,
+    };
+  }
+
+  // ── Cache miss → live run ─────────────────────────────────────────────────
   const to = Math.floor(Date.now() / 1000);
   const from = to - 400 * 24 * 60 * 60;
   const spyCandles = await getCandles('SPY', 'D', from, to).catch(() => []);
   const marketRegime = calcMarketRegime(spyCandles);
   const results = await runScreener(marketRegime, 200).catch(() => []);
-  return { marketRegime, results };
+
+  return { marketRegime, results, source: 'live' as const, refreshedAt: null };
 }
 
 export default async function ScreenerPage() {
@@ -23,19 +40,46 @@ export default async function ScreenerPage() {
   try {
     screenData = await getData();
   } catch {
-    screenData = { marketRegime: 'CAUTION', results: [] };
+    screenData = { marketRegime: 'CAUTION', results: [], source: 'live', refreshedAt: null };
   }
-  const { marketRegime, results } = screenData;
+  const { marketRegime, results, source, refreshedAt } = screenData;
   const hasKey = !!process.env.FINNHUB_API_KEY;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="max-w-[1700px] mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Large-Cap Screener</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            S&P 500 large-caps screened for swing trade setups · Market cap &gt; $10B · Updated at market close
-          </p>
+        <div className="mb-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Large-Cap Screener</h1>
+            <p className="text-gray-400 text-sm mt-1">
+              S&P 500 large-caps screened for swing trade setups · Market cap &gt; $10B
+            </p>
+          </div>
+
+          {/* Cache status badge */}
+          <div className="shrink-0">
+            {source === 'cache' && refreshedAt ? (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-700/50 bg-emerald-900/20 px-3 py-2 text-xs">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <div>
+                  <span className="text-emerald-300 font-medium">Daily cache active</span>
+                  <div className="text-emerald-600 mt-0.5">Updated {formatSGTTime(refreshedAt)}</div>
+                </div>
+              </div>
+            ) : source === 'live' && hasKey ? (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-700/50 bg-amber-900/20 px-3 py-2 text-xs">
+                <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                <div>
+                  <span className="text-amber-300 font-medium">Live run</span>
+                  <div className="text-amber-600 mt-0.5">
+                    {isSupabaseConfigured
+                      ? 'No cache for today yet — cron runs at 7AM SGT'
+                      : 'Add Supabase to enable daily caching'}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {!hasKey && (
@@ -70,7 +114,16 @@ export default async function ScreenerPage() {
           </div>
         ) : (
           <>
-            <div className="text-sm text-gray-500 mb-3">{results.length} candidates found · Click column headers to sort</div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-gray-500">
+                {results.length} candidates found · Click column headers to sort
+              </span>
+              {source === 'cache' && (
+                <span className="text-xs text-gray-600">
+                  Auto-refreshes daily at 7AM SGT
+                </span>
+              )}
+            </div>
             <ScreenerTable entries={results} />
           </>
         )}
