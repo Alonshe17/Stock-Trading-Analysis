@@ -27,9 +27,7 @@ export default function HomePage() {
           </div>
 
           <h1 className="text-5xl font-bold text-white leading-tight mb-4">
-            From Swing Trade To<br />
-            <span className="text-blue-400">Stock Trading Analysis</span><br />
-            <span className="text-gray-400 text-3xl font-semibold">Monitor</span>
+            <span className="text-blue-400">Stock Trading Analysis</span>
           </h1>
           <p className="text-lg text-gray-400 mb-8 leading-relaxed">
             Professional-grade stock trading analysis across global markets.
