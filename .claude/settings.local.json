@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:finnhub.io)",
+      "WebSearch",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(curl -s \"https://finnhub.io/api/v1/quote?symbol=AAPL&token=d7ist4hr01qn2qav97igd7ist4hr01qn2qav97j0\")",
+      "Bash(Remove-Item -Recurse -Force \"C:\\\\Users\\\\jeric\\\\OneDrive\\\\Desktop\\\\Projects\\\\Project 2\\\\boilerplate-main\\\\Stock Trading App\\\\.next\")",
+      "Bash(curl -s \"https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1y\")",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1y\")",
+      "Bash(curl -s \"https://finnhub.io/api/v1/company-news?symbol=AAPL&from=2026-04-14&to=2026-04-20&token=d7ist4hr01qn2qav97igd7ist4hr01qn2qav97j0\")",
+      "Bash(node -e \"const {SP500_LARGE_CAP} = require\\('./lib/sp500.ts'\\); console.log\\(SP500_LARGE_CAP.length\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const g = require\\('./lib/globalUniverse'\\); console.log\\('TREND_UNIVERSE:', g.TREND_UNIVERSE?.length, 'stocks'\\); const cats = {}; \\(g.TREND_UNIVERSE||[]\\).forEach\\(s => { if\\(s.category\\) cats[s.category] = \\(cats[s.category]||0\\)+1; }\\); console.log\\(JSON.stringify\\(cats, null, 2\\)\\);\")"
+    ]
+  }
+}
