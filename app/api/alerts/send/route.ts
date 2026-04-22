@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     const payload: AlertPayload = await req.json();
     const html = buildEmail(payload);
     const { error } = await resend.emails.send({
-      from: 'Stock Trading Analysis <alerts@yourdomain.com>',
+      from: 'Stock Trading Analysis <onboarding@resend.dev>',
       to: payload.to,
       subject: `Swing Trade Report · ${new Date().toDateString()} · Market: ${payload.marketRegime}`,
       html,

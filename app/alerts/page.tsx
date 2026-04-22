@@ -10,25 +10,24 @@ export default function AlertsPage() {
   async function triggerTestEmail() {
     if (!email) return;
     setStatus('sending');
+    setMessage('');
     try {
-      const res = await fetch('/api/cron/daily-close', {
+      const res = await fetch('/api/alerts/test', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-cron-secret': '',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       });
+      const d = await res.json();
       if (!res.ok) {
-        const d = await res.json();
         setMessage(d.error ?? 'Failed to send');
         setStatus('error');
       } else {
         setStatus('sent');
-        setMessage('Test email triggered! Check your inbox in a few minutes.');
+        setMessage(`✓ Email sent to ${d.sentTo} · Market: ${d.marketRegime}`);
       }
     } catch {
       setStatus('error');
-      setMessage('Network error — make sure the dev server is running.');
+      setMessage('Network error — check that NEXT_PUBLIC_APP_URL is set in Vercel.');
     }
   }
 
