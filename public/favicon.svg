@@ -1,11 +1,18 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#667eea"/>
-      <stop offset="50%" style="stop-color:#764ba2"/>
-      <stop offset="100%" style="stop-color:#f5576c"/>
-    </linearGradient>
-  </defs>
-  <rect width="32" height="32" rx="6" fill="url(#faviconGradient)"/>
-  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="bold">A</text>
+  <rect width="32" height="32" rx="7" fill="#1d4ed8"/>
+  <!-- Candlestick wicks -->
+  <line x1="8"  y1="7"  x2="8"  y2="10" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="8"  y1="18" x2="8"  y2="21" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="16" y1="5"  x2="16" y2="8"  stroke="#34d399" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="16" y1="16" x2="16" y2="19" stroke="#34d399" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="4"  x2="24" y2="7"  stroke="#34d399" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="14" x2="24" y2="17" stroke="#34d399" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Candlestick bodies -->
+  <rect x="5.5" y="10" width="5" height="8"  rx="1" fill="white" opacity="0.75"/>
+  <rect x="13.5" y="8"  width="5" height="8"  rx="1" fill="#34d399"/>
+  <rect x="21.5" y="7"  width="5" height="7"  rx="1" fill="#34d399"/>
+  <!-- Trend line -->
+  <polyline points="8,14 16,12 24,10.5" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- "STA" label -->
+  <text x="16" y="28.5" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="system-ui,-apple-system,sans-serif" font-size="5.5" font-weight="bold" letter-spacing="0.5">STA</text>
 </svg>

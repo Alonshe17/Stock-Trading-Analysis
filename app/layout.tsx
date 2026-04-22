@@ -21,8 +21,19 @@ export const metadata: Metadata = {
   title: "Stock Trading Analysis — Global Market Swing Trade Signals",
   description: "Daily swing trade signals across US, Asia, EUR/UK and growth stocks. Technical analysis, Minervini trend scoring, dip opportunity detection, and ATR-based risk management.",
   keywords: ["swing trading", "stock analysis", "price action", "technical analysis", "large cap stocks"],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "STA",
+  },
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon.svg",
   },
 };
 
