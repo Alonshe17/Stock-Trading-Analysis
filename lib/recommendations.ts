@@ -43,10 +43,13 @@ export type Recommendation = {
   cashFlowPerShare: number | null;  // $
   // Analyst
   analystRating: string | null;
+  analystBuy:    number;
+  analystHold:   number;
+  analystSell:   number;
+  numberOfAnalysts: number;
   targetMeanPrice: number | null;
   targetHighPrice: number | null;
-  targetLowPrice: number | null;
-  numberOfAnalysts: number;
+  targetLowPrice:  number | null;
   analystUpside: number | null;
 };
 
@@ -182,15 +185,13 @@ export async function fetchRecommendations(
       const debtToEquity    = financials?.debtToEquity    ?? null;
       const currentRatio    = financials?.currentRatio    ?? null;
       const cashFlowPerShare= financials?.cashFlowPerShare?? null;
-      const analystRating   = financials?.recommendation ?? null;
-      const targetMeanPrice = financials?.targetMean    ?? null;
-      const targetHighPrice = financials?.targetHigh    ?? null;
-      const targetLowPrice  = financials?.targetLow     ?? null;
+      const analystRating          = financials?.recommendation ?? null;
+      const targetMeanPrice: null  = null; // requires Finnhub paid tier
+      const targetHighPrice: null  = null;
+      const targetLowPrice: null   = null;
+      const analystUpside: null    = null;
       const numberOfAnalysts =
         (financials?.analystBuy ?? 0) + (financials?.analystHold ?? 0) + (financials?.analystSell ?? 0);
-      const analystUpside = targetMeanPrice != null && price > 0
-        ? ((targetMeanPrice - price) / price) * 100
-        : null;
 
       const setup = calcTradeSetup(
         analysis.signal,
@@ -230,10 +231,13 @@ export async function fetchRecommendations(
         currentRatio,
         cashFlowPerShare,
         analystRating,
+        analystBuy:  financials?.analystBuy  ?? 0,
+        analystHold: financials?.analystHold ?? 0,
+        analystSell: financials?.analystSell ?? 0,
+        numberOfAnalysts,
         targetMeanPrice,
         targetHighPrice,
         targetLowPrice,
-        numberOfAnalysts,
         analystUpside,
       };
 

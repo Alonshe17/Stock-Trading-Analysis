@@ -21,9 +21,28 @@ function fmtPct(value: number | null | undefined, decimals = 1): string {
   return `${sign}${value.toFixed(decimals)}%`;
 }
 
-function fmtMultiple(value: number | null | undefined): string {
-  if (value === null || value === undefined || isNaN(value)) return '—';
-  return `${value.toFixed(1)}x`;
+function AnalystBar({ buy, hold, sell }: { buy: number; hold: number; sell: number }) {
+  const total = buy + hold + sell;
+  if (total === 0) return null;
+  const buyPct  = Math.round((buy  / total) * 100);
+  const holdPct = Math.round((hold / total) * 100);
+  const sellPct = 100 - buyPct - holdPct;
+  return (
+    <div className="space-y-1.5">
+      {/* Bar */}
+      <div className="flex h-2 rounded-full overflow-hidden gap-px">
+        {buyPct  > 0 && <div className="bg-emerald-500 rounded-l-full" style={{ width: `${buyPct}%`  }} />}
+        {holdPct > 0 && <div className="bg-amber-500"                  style={{ width: `${holdPct}%` }} />}
+        {sellPct > 0 && <div className="bg-red-500 rounded-r-full"     style={{ width: `${sellPct}%` }} />}
+      </div>
+      {/* Labels */}
+      <div className="flex justify-between text-xs">
+        <span className="text-emerald-400">Buy {buy}</span>
+        <span className="text-amber-400">Hold {hold}</span>
+        <span className="text-red-400">Sell {sell}</span>
+      </div>
+    </div>
+  );
 }
 
 function AnalystRatingBadge({ rating }: { rating: string | null }) {
@@ -196,37 +215,18 @@ export function RecommendationCard({ rec }: Props) {
         </div>
       </div>
 
-      {/* Analyst Section */}
+      {/* Analyst Consensus — buy/hold/sell breakdown */}
       {rec.numberOfAnalysts > 0 && (
         <div className="bg-gray-950 rounded-lg p-3">
-          <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-2">
-            Analyst Consensus
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Analyst Consensus</span>
+            <span className="text-xs text-gray-400">{rec.numberOfAnalysts} analyst{rec.numberOfAnalysts !== 1 ? 's' : ''}</span>
           </div>
-          <div className="text-xs text-gray-400 mb-1.5">
-            {rec.numberOfAnalysts} analyst{rec.numberOfAnalysts !== 1 ? 's' : ''}
-            {rec.analystRating ? ` · ${rec.analystRating}` : ''}
-          </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-            <span className="text-gray-500">Mean Target</span>
-            <span className="text-gray-200 text-right">{fmt(rec.targetMeanPrice, 2, currencyLabel)}</span>
-            <span className="text-gray-500">High Target</span>
-            <span className="text-gray-200 text-right">{fmt(rec.targetHighPrice, 2, currencyLabel)}</span>
-            <span className="text-gray-500">Low Target</span>
-            <span className="text-gray-200 text-right">{fmt(rec.targetLowPrice, 2, currencyLabel)}</span>
-          </div>
-          {rec.analystUpside !== null && (
-            <div className={`text-xs mt-2 font-medium flex items-center gap-1 ${rec.analystUpside >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              Upside: {fmtPct(rec.analystUpside)} to mean target
-              <InfoTooltip title="Analyst Price Target Upside" side="top">
-                <p>The percentage difference between the current price and the consensus analyst mean price target.</p>
-                <ul className="mt-1 space-y-0.5">
-                  <li><span className="text-emerald-400">Positive %</span> — Analysts expect the stock to rise from here.</li>
-                  <li><span className="text-red-400">Negative %</span> — Current price already exceeds analyst targets.</li>
-                </ul>
-                <p className="mt-1 text-gray-500">Based on Wall Street analyst 12-month price targets. More analysts = more reliable consensus.</p>
-              </InfoTooltip>
-            </div>
-          )}
+          <AnalystBar
+            buy={rec.analystBuy ?? 0}
+            hold={rec.analystHold ?? 0}
+            sell={rec.analystSell ?? 0}
+          />
         </div>
       )}
 
