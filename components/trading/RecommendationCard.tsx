@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { SignalBadge } from '@/components/trading/SignalBadge';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { AddToWatchlistButton } from '@/components/trading/AddToWatchlistButton';
+import { getFundamentalHealth } from '@/lib/trendAnalysis';
 import type { Recommendation } from '@/lib/recommendations';
 
 interface Props {
@@ -59,9 +60,8 @@ function RrColor({ rr }: { rr: number }) {
 export function RecommendationCard({ rec }: Props) {
   const isNonUsd = rec.currency !== 'USD';
   const currencyLabel = isNonUsd ? rec.currency : undefined;
-
-  // Safe symbol for URL (strip exchange suffix for internal link)
   const urlSymbol = encodeURIComponent(rec.symbol);
+  const health = getFundamentalHealth(rec);
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col gap-3">
@@ -230,31 +230,47 @@ export function RecommendationCard({ rec }: Props) {
         </div>
       )}
 
-      {/* Fundamentals */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-        <div>
-          PE:{' '}
-          <span className="text-gray-400">
-            {rec.peRatio !== null ? rec.peRatio.toFixed(1) : 'N/A'}
+      {/* Fundamental Health */}
+      <div className="flex flex-wrap items-center gap-3">
+        {health.label !== 'Unknown' && (
+          <span className={`inline-flex items-center text-xs font-medium ${health.color}`}>
+            {health.label} Fundamentals ({health.score}/{health.max})
+            <InfoTooltip title="Fundamental Health Score" side="top" width="w-72">
+              <p className="mb-1.5">
+                Score <span className="font-semibold text-white">{health.score}/{health.max}</span> based on {health.max} criteria:
+              </p>
+              <ul className="space-y-1">
+                {health.breakdown.map((c) => (
+                  <li key={c.label} className="flex items-start gap-1.5">
+                    <span className={`mt-0.5 shrink-0 ${c.pass === true ? 'text-emerald-400' : c.pass === false ? 'text-red-400' : 'text-gray-600'}`}>
+                      {c.pass === true ? '✓' : c.pass === false ? '✗' : '—'}
+                    </span>
+                    <span className={c.pass === null ? 'text-gray-600' : 'text-gray-300'}>{c.label}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-gray-500 text-xs">≥3 Strong · 2 Moderate · &lt;2 Weak</p>
+              <p className="mt-1 text-gray-600 text-xs">📚 W. Buffett (Annual Letters) · B. Graham, <em>The Intelligent Investor</em> (1949)</p>
+            </InfoTooltip>
           </span>
-        </div>
-        <div>
-          Rev Growth:{' '}
-          <span className={rec.revenueGrowth !== null && rec.revenueGrowth > 0 ? 'text-emerald-500' : 'text-gray-400'}>
-            {rec.revenueGrowth !== null ? fmtPct(rec.revenueGrowth * 100, 0) : '—'}
-          </span>
-        </div>
-        <div>
-          EPS Growth:{' '}
-          <span className={rec.earningsGrowth !== null && rec.earningsGrowth > 0 ? 'text-emerald-500' : 'text-gray-400'}>
-            {rec.earningsGrowth !== null ? fmtPct(rec.earningsGrowth * 100, 0) : '—'}
-          </span>
-        </div>
-        <div>
-          Margin:{' '}
-          <span className="text-gray-400">
-            {rec.profitMargin !== null ? fmtPct(rec.profitMargin * 100, 1) : '—'}
-          </span>
+        )}
+
+        {/* Secondary fundamentals numbers */}
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-600">
+          {rec.peRatio !== null && <span>P/E {rec.peRatio.toFixed(1)}</span>}
+          {rec.revenueGrowth !== null && (
+            <span className={rec.revenueGrowth > 0 ? 'text-gray-500' : 'text-gray-600'}>
+              Rev {fmtPct(rec.revenueGrowth * 100, 0)}
+            </span>
+          )}
+          {rec.earningsGrowth !== null && (
+            <span className={rec.earningsGrowth > 0 ? 'text-gray-500' : 'text-gray-600'}>
+              EPS {fmtPct(rec.earningsGrowth * 100, 0)}
+            </span>
+          )}
+          {rec.profitMargin !== null && (
+            <span>Margin {fmtPct(rec.profitMargin * 100, 1)}</span>
+          )}
         </div>
       </div>
 
