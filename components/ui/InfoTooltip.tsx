@@ -79,11 +79,13 @@ export function InfoTooltip({ title, children, side = 'top', width = 'w-72' }: I
                Desktop : absolute tooltip anchored to the ⓘ icon               ── */}
           <span
             className={[
-              // Mobile — fixed centered
+              // Mobile — fixed centered (left-4/right-4 constrain width, ignoring width class)
               'fixed left-4 right-4 top-1/2 -translate-y-1/2',
-              // Desktop override — back to absolute positioned tooltip
-              `sm:absolute sm:fixed-none sm:top-auto sm:right-auto sm:translate-y-0`,
-              `sm:left-1/2 sm:-translate-x-1/2 sm:${width}`,
+              // Desktop — absolute tooltip anchored to the ⓘ icon
+              'sm:absolute sm:top-auto sm:right-auto sm:translate-y-0',
+              `sm:left-1/2 sm:-translate-x-1/2`,
+              // Width applied at all breakpoints — static class so Tailwind JIT picks it up
+              width,
               side === 'top' ? 'sm:bottom-full sm:mb-2' : 'sm:top-full sm:mt-2',
               // Common
               'z-[9999] rounded-xl border border-gray-700 bg-gray-900 shadow-2xl p-4 text-left pointer-events-auto',
