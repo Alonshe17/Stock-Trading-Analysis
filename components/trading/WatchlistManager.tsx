@@ -14,6 +14,33 @@ type StockData = AnalysisResult & {
   name: string;
   marketRegime: string;
   earningsDate?: string | null;
+  // Extra fundamentals from Finnhub (added in analysis API route)
+  revenueGrowth:  number | null;
+  profitMargin:   number | null;
+  analystRating:  string | null;
+  analystBuy:     number;
+  analystHold:    number;
+  analystSell:    number;
+};
+
+function fundamentalHealth(data: StockData): { label: string; color: string } | null {
+  const { revenueGrowth, profitMargin, analystRating } = data;
+  const hasData = revenueGrowth !== null || profitMargin !== null || analystRating !== null;
+  if (!hasData) return null;
+  let score = 0;
+  if (revenueGrowth !== null && revenueGrowth > 0.05) score++;
+  if (profitMargin  !== null && profitMargin  > 0.10) score++;
+  if (analystRating === 'Buy' || analystRating === 'Strong Buy') score++;
+  if (score >= 2) return { label: 'Strong Fundamentals',   color: 'text-emerald-400' };
+  if (score === 1) return { label: 'Moderate Fundamentals', color: 'text-amber-400' };
+  return               { label: 'Weak Fundamentals',       color: 'text-red-400' };
+}
+
+const ANALYST_COLORS: Record<string, string> = {
+  'Strong Buy': 'bg-emerald-900/50 text-emerald-400 border-emerald-700/50',
+  'Buy':        'bg-green-900/50   text-green-400   border-green-700/50',
+  'Hold':       'bg-amber-900/50   text-amber-400   border-amber-700/50',
+  'Sell':       'bg-red-900/50     text-red-400     border-red-700/50',
 };
 
 type LoadState = 'idle' | 'loading' | 'done' | 'error';
@@ -306,10 +333,33 @@ function StockCardEditable({
 
         {/* Fundamentals */}
         <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-xs mb-2">
-          <Stat label="P/E"     value={data.peRatio > 0 ? data.peRatio.toFixed(1) : '—'}                        color="text-gray-300" />
-          <Stat label="Mkt Cap" value={data.marketCap > 0 ? formatMktCap(data.marketCap) : '—'}                 color="text-gray-300" />
-          <Stat label="Div Yld" value={data.dividend > 0 ? `${data.dividend.toFixed(2)}%` : '—'}              color="text-amber-400" />
+          <Stat label="P/E"     value={data.peRatio > 0 ? data.peRatio.toFixed(1) : '—'}              color="text-gray-300" />
+          <Stat label="Mkt Cap" value={data.marketCap > 0 ? formatMktCap(data.marketCap) : '—'}       color="text-gray-300" />
+          <Stat label="Div Yld" value={data.dividend > 0 ? `${data.dividend.toFixed(2)}%` : '—'}      color="text-amber-400" />
         </div>
+
+        {/* Fundamental health + analyst rating */}
+        {(() => {
+          const health = fundamentalHealth(data);
+          const totalAnalysts = (data.analystBuy ?? 0) + (data.analystHold ?? 0) + (data.analystSell ?? 0);
+          const ratingCls = data.analystRating ? (ANALYST_COLORS[data.analystRating] ?? 'bg-gray-800 text-gray-400 border-gray-700') : null;
+          if (!health && !ratingCls) return null;
+          return (
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              {health && (
+                <span className={`text-xs font-medium ${health.color}`}>{health.label}</span>
+              )}
+              {ratingCls && data.analystRating && (
+                <span className={`text-xs border rounded px-1.5 py-0.5 font-medium ${ratingCls}`}>
+                  {data.analystRating}
+                </span>
+              )}
+              {totalAnalysts > 0 && (
+                <span className="text-xs text-gray-600">{totalAnalysts} analyst{totalAnalysts !== 1 ? 's' : ''}</span>
+              )}
+            </div>
+          );
+        })()}
 
         {/* TA stats */}
         <div className="grid grid-cols-3 gap-2 text-xs border-t border-gray-800 pt-2">

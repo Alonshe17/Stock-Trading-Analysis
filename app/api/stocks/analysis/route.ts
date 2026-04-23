@@ -20,13 +20,23 @@ export async function GET(req: NextRequest) {
 
     // Merge fundamentals from Finnhub (P/E TTM, dividend yield, market cap)
     if (financials) {
-      if (financials.peTTM !== null)       result.peRatio   = financials.peTTM;
+      if (financials.peTTM !== null)        result.peRatio  = financials.peTTM;
       if (financials.dividendYield !== null) result.dividend = financials.dividendYield;
     }
     // Market cap comes from the profile endpoint (already in millions USD)
     if (profile?.marketCap) result.marketCap = profile.marketCap;
 
-    return NextResponse.json({ ...result, marketRegime, name: profile?.name ?? sym });
+    // Extra fundamental fields for watchlist health badge
+    const extra = {
+      revenueGrowth:  financials?.revenueGrowthYoy != null ? financials.revenueGrowthYoy / 100 : null,
+      profitMargin:   financials?.netMargin        != null ? financials.netMargin        / 100 : null,
+      analystRating:  financials?.recommendation   ?? null,
+      analystBuy:     financials?.analystBuy  ?? 0,
+      analystHold:    financials?.analystHold ?? 0,
+      analystSell:    financials?.analystSell ?? 0,
+    };
+
+    return NextResponse.json({ ...result, marketRegime, name: profile?.name ?? sym, ...extra });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

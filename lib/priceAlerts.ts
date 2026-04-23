@@ -21,11 +21,16 @@ export function getAlerts(): PriceAlert[] {
   }
 }
 
-export function saveAlerts(alerts: PriceAlert[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
+export function saveAlerts(alerts: PriceAlert[]): boolean {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function upsertAlert(alert: Omit<PriceAlert, 'id' | 'createdAt' | 'triggeredHigh' | 'triggeredLow' | 'active'>): void {
+export function upsertAlert(alert: Omit<PriceAlert, 'id' | 'createdAt' | 'triggeredHigh' | 'triggeredLow' | 'active'>): boolean {
   const alerts = getAlerts();
   const existing = alerts.findIndex((a) => a.symbol === alert.symbol);
   if (existing >= 0) {
@@ -33,7 +38,7 @@ export function upsertAlert(alert: Omit<PriceAlert, 'id' | 'createdAt' | 'trigge
       ...alerts[existing],
       highTarget: alert.highTarget,
       lowTarget: alert.lowTarget,
-      triggeredHigh: false,
+      triggeredHigh: false,  // always re-arm so monitoring continues
       triggeredLow: false,
       active: true,
     };
@@ -47,7 +52,7 @@ export function upsertAlert(alert: Omit<PriceAlert, 'id' | 'createdAt' | 'trigge
       active: true,
     });
   }
-  saveAlerts(alerts);
+  return saveAlerts(alerts);
 }
 
 export function removeAlert(symbol: string): void {
