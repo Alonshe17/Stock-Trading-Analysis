@@ -1,4 +1,5 @@
-import { fetchYahooCandles, fetchYahooFundamentals } from './yahoofetch';
+import { fetchYahooCandles } from './yahoofetch';
+import { getFinancials } from './finnhub';
 import { analyze } from './analysis';
 import type { AnalysisResult, Signal } from './analysis';
 import type { StockMeta } from './globalUniverse';
@@ -148,9 +149,9 @@ export async function fetchRecommendations(
     }
 
     try {
-      const [candles, fundamentals] = await Promise.all([
+      const [candles, financials] = await Promise.all([
         fetchYahooCandles(stock.symbol),
-        fetchYahooFundamentals(stock.symbol),
+        getFinancials(stock.symbol).catch(() => null),
       ]);
 
       // Skip if not enough candle data
@@ -164,20 +165,24 @@ export async function fetchRecommendations(
       const price = analysis.price;
       if (price <= 0) continue;
 
-      const peRatio = fundamentals?.peRatio ?? null;
-      const revenueGrowth = fundamentals?.revenueGrowth ?? null;
-      const earningsGrowth = fundamentals?.earningsGrowth ?? null;
-      const profitMargin = fundamentals?.profitMargin ?? null;
-      const analystRating = fundamentals?.analystRating ?? null;
-      const targetMeanPrice = fundamentals?.targetMeanPrice ?? null;
-      const targetHighPrice = fundamentals?.targetHighPrice ?? null;
-      const targetLowPrice = fundamentals?.targetLowPrice ?? null;
-      const numberOfAnalysts = fundamentals?.numberOfAnalysts ?? 0;
+      // Map Finnhub financials → Recommendation fields
+      // Finnhub returns growth values as %, TrendCard expects decimals (÷100)
+      const peRatio = financials?.peTTM ?? null;
+      const revenueGrowth = financials?.revenueGrowthYoy !== null && financials?.revenueGrowthYoy !== undefined
+        ? financials.revenueGrowthYoy / 100
+        : null;
+      const earningsGrowth: number | null = null;  // not available on Finnhub free tier
+      const profitMargin = financials?.netMargin !== null && financials?.netMargin !== undefined
+        ? financials.netMargin / 100
+        : null;
+      const analystRating = financials?.recommendation ?? null;
+      const targetMeanPrice: number | null = null;  // requires Finnhub paid tier
+      const targetHighPrice: number | null = null;
+      const targetLowPrice: number | null = null;
+      const numberOfAnalysts =
+        (financials?.analystBuy ?? 0) + (financials?.analystHold ?? 0) + (financials?.analystSell ?? 0);
 
-      const analystUpside =
-        targetMeanPrice !== null && price > 0
-          ? ((targetMeanPrice - price) / price) * 100
-          : null;
+      const analystUpside: number | null = null;  // no target price on free tier
 
       const setup = calcTradeSetup(
         analysis.signal,
@@ -191,10 +196,10 @@ export async function fetchRecommendations(
 
       const rec: Recommendation = {
         symbol: stock.symbol,
-        name: fundamentals?.name || stock.name,
-        sector: fundamentals?.sector || stock.sector,
+        name: stock.name,
+        sector: stock.sector,
         exchange: stock.exchange,
-        currency: fundamentals?.currency || stock.currency,
+        currency: stock.currency,
         region,
         price,
         signal: analysis.signal,

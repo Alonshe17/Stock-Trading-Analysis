@@ -308,7 +308,7 @@ function StockCardEditable({
         <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-xs mb-2">
           <Stat label="P/E"     value={data.peRatio > 0 ? data.peRatio.toFixed(1) : '—'}                        color="text-gray-300" />
           <Stat label="Mkt Cap" value={data.marketCap > 0 ? formatMktCap(data.marketCap) : '—'}                 color="text-gray-300" />
-          <Stat label="Div"     value={data.dividend > 0 ? `$${data.dividend.toFixed(2)}` : '—'}                color="text-amber-400" />
+          <Stat label="Div Yld" value={data.dividend > 0 ? `${data.dividend.toFixed(2)}%` : '—'}              color="text-amber-400" />
         </div>
 
         {/* TA stats */}

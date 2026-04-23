@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCandles, getProfile, getQuoteFundamentals } from '@/lib/finnhub';
+import { getCandles, getProfile, getFinancials } from '@/lib/finnhub';
 import { analyze, calcMarketRegime } from '@/lib/analysis';
 
 export async function GET(req: NextRequest) {
@@ -8,29 +8,23 @@ export async function GET(req: NextRequest) {
 
   try {
     const sym = symbol.toUpperCase();
-    const [candles, spyCandles, fundamentals, profile] = await Promise.all([
+    const [candles, spyCandles, financials, profile] = await Promise.all([
       getCandles(sym, 'D'),
       getCandles('SPY', 'D'),
-      getQuoteFundamentals(sym).catch(() => null),
+      getFinancials(sym).catch(() => null),
       getProfile(sym).catch(() => null),
     ]);
 
     const marketRegime = calcMarketRegime(spyCandles);
     const result = analyze(sym, candles, marketRegime);
 
-    // Merge fundamentals (PE, dividend, market cap) from Yahoo Finance
-    if (fundamentals) {
-      result.peRatio = fundamentals.peRatio;
-      result.dividend = fundamentals.dividend;
-      result.marketCap = fundamentals.marketCap;
-      // Use Yahoo's live open/high/low if available (more accurate than last candle)
-      if (fundamentals.open > 0) result.open = fundamentals.open;
-      if (fundamentals.high > 0) result.high = fundamentals.high;
-      if (fundamentals.low > 0) result.low = fundamentals.low;
-      // Use Yahoo's 52wk high/low if available
-      if (fundamentals.week52High > 0) result.week52High = fundamentals.week52High;
-      if (fundamentals.week52Low > 0) result.week52Low = fundamentals.week52Low;
+    // Merge fundamentals from Finnhub (P/E TTM, dividend yield, market cap)
+    if (financials) {
+      if (financials.peTTM !== null)       result.peRatio   = financials.peTTM;
+      if (financials.dividendYield !== null) result.dividend = financials.dividendYield;
     }
+    // Market cap comes from the profile endpoint (already in millions USD)
+    if (profile?.marketCap) result.marketCap = profile.marketCap;
 
     return NextResponse.json({ ...result, marketRegime, name: profile?.name ?? sym });
   } catch (e) {

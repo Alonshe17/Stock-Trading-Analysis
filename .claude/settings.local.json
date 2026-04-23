@@ -11,7 +11,19 @@
       "Bash(curl -s \"https://finnhub.io/api/v1/company-news?symbol=AAPL&from=2026-04-14&to=2026-04-20&token=d7ist4hr01qn2qav97igd7ist4hr01qn2qav97j0\")",
       "Bash(node -e \"const {SP500_LARGE_CAP} = require\\('./lib/sp500.ts'\\); console.log\\(SP500_LARGE_CAP.length\\)\")",
       "Bash(npx tsc *)",
-      "Bash(node -e \"const g = require\\('./lib/globalUniverse'\\); console.log\\('TREND_UNIVERSE:', g.TREND_UNIVERSE?.length, 'stocks'\\); const cats = {}; \\(g.TREND_UNIVERSE||[]\\).forEach\\(s => { if\\(s.category\\) cats[s.category] = \\(cats[s.category]||0\\)+1; }\\); console.log\\(JSON.stringify\\(cats, null, 2\\)\\);\")"
+      "Bash(node -e \"const g = require\\('./lib/globalUniverse'\\); console.log\\('TREND_UNIVERSE:', g.TREND_UNIVERSE?.length, 'stocks'\\); const cats = {}; \\(g.TREND_UNIVERSE||[]\\).forEach\\(s => { if\\(s.category\\) cats[s.category] = \\(cats[s.category]||0\\)+1; }\\); console.log\\(JSON.stringify\\(cats, null, 2\\)\\);\")",
+      "Bash(node -e ' *)",
+      "Bash(curl -s \"https://query1.finance.yahoo.com/v10/finance/quoteSummary/AAPL?modules=financialData,defaultKeyStatistics,summaryDetail\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" -H \"Accept: application/json\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); r=d.get\\('quoteSummary',{}\\).get\\('result',[None]\\)[0] or {}; fd=r.get\\('financialData',{}\\); print\\('revenue:', fd.get\\('totalRevenue'\\)\\); print\\('fcf:', fd.get\\('freeCashflow'\\)\\); print\\('margin:', fd.get\\('profitMargins'\\)\\); print\\('pe:', r.get\\('summaryDetail',{}\\).get\\('trailingPE'\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2\\)[:2000]\\)\")",
+      "Bash(curl -s \"https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL&fields=trailingPE,forwardPE,priceToBook,trailingEps,revenueGrowth,profitMargins,grossMargins,operatingMargins,returnOnEquity,returnOnAssets,operatingCashflow,freeCashflow,totalCash,totalDebt,debtToEquity,recommendationMean,numberOfAnalystOpinions,targetMeanPrice,trailingAnnualDividendRate,marketCap,dividendYield\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" -H \"Accept: application/json\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); q=d.get\\('quoteResponse',{}\\).get\\('result',[{}]\\)[0]; print\\(json.dumps\\({k:v for k,v in q.items\\(\\) if k in ['trailingPE','forwardPE','priceToBook','trailingEps','profitMargins','grossMargins','operatingMargins','returnOnEquity','freeCashflow','totalCash','totalDebt','recommendationMean','targetMeanPrice','numberOfAnalystOpinions']}, indent=2\\)\\)\")",
+      "Bash(curl -s \"https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL&fields=trailingPE,forwardPE,priceToBook,trailingEps,profitMargins,grossMargins,operatingMargins,returnOnEquity,returnOnAssets,operatingCashflow,freeCashflow,totalCash,totalDebt,debtToEquity,recommendationMean,numberOfAnalystOpinions,targetMeanPrice,trailingAnnualDividendRate,marketCap\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" -H \"Accept: application/json\" -H \"Referer: https://finance.yahoo.com\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); q=\\(d.get\\('quoteResponse'\\) or d.get\\('finance',{}\\)\\).get\\('result',[{}]\\); print\\('keys in result[0]:', list\\(q[0].keys\\(\\)\\)[:15] if q else 'EMPTY'\\); print\\(json.dumps\\(d\\)[:500]\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import sys,json; print\\(json.dumps\\(json.load\\(sys.stdin\\), indent=2\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[0] if d else d, indent=2\\)\\)\")",
+      "Bash(xargs grep *)"
     ]
   }
 }
