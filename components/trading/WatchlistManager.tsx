@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { SignalBadge } from './SignalBadge';
 import { EarningsWarning } from './EarningsWarning';
 import { PriceAlertBell } from './PriceAlertBell';
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import type { AnalysisResult } from '@/lib/analysis';
 import type { WatchlistItem } from '@/lib/watchlist';
 
@@ -363,11 +365,89 @@ function StockCardEditable({
 
         {/* TA stats */}
         <div className="grid grid-cols-3 gap-2 text-xs border-t border-gray-800 pt-2">
-          <Stat label="RSI" value={data.rsi.toFixed(1)} color={data.rsi < 35 ? 'text-emerald-400' : data.rsi > 70 ? 'text-red-400' : 'text-gray-300'} />
-          <Stat label="ATR%" value={`${data.atrPct.toFixed(1)}%`} color="text-gray-300" />
-          <Stat label="Score" value={`${data.minerviniScore}/6`} color={data.minerviniScore >= 5 ? 'text-emerald-400' : data.minerviniScore >= 3 ? 'text-amber-400' : 'text-red-400'} />
-          <Stat label="Off High" value={`-${data.distanceFromHigh.toFixed(1)}%`} color={data.distanceFromHigh <= 5 ? 'text-emerald-400' : data.distanceFromHigh >= 20 ? 'text-amber-400' : 'text-gray-300'} />
-          {data.pattern && <div className="col-span-2"><Stat label="Pattern" value={data.pattern} color="text-blue-400" /></div>}
+          <Stat
+            label="RSI"
+            value={data.rsi.toFixed(1)}
+            color={data.rsi < 35 ? 'text-emerald-400' : data.rsi > 70 ? 'text-red-400' : 'text-gray-300'}
+            tooltip={
+              <>
+                <p>Relative Strength Index (14-period) — measures momentum on a 0–100 scale.</p>
+                <ul className="mt-1 space-y-0.5">
+                  <li><span className="text-emerald-400 font-semibold">&lt; 35</span> — Oversold: potential bounce zone</li>
+                  <li><span className="text-gray-300 font-semibold">35–70</span> — Neutral: healthy trend range</li>
+                  <li><span className="text-red-400 font-semibold">&gt; 70</span> — Overbought: pullback risk</li>
+                </ul>
+              </>
+            }
+          />
+          <Stat
+            label="ATR%"
+            value={`${data.atrPct.toFixed(1)}%`}
+            color="text-gray-300"
+            tooltip={
+              <>
+                <p>Average True Range as % of price (14-period). Measures how much the stock typically moves per day.</p>
+                <ul className="mt-1 space-y-0.5">
+                  <li><span className="text-emerald-400 font-semibold">&gt; 2%</span> — High volatility, good swing potential</li>
+                  <li><span className="text-amber-400 font-semibold">1–2%</span> — Moderate — workable swings</li>
+                  <li><span className="text-red-400 font-semibold">&lt; 1%</span> — Low volatility, smaller moves</li>
+                </ul>
+                <p className="mt-1 text-gray-400">Used to size stops: stop = entry − 1.5× ATR.</p>
+              </>
+            }
+          />
+          <Stat
+            label="Score"
+            value={`${data.minerviniScore}/6`}
+            color={data.minerviniScore >= 5 ? 'text-emerald-400' : data.minerviniScore >= 3 ? 'text-amber-400' : 'text-red-400'}
+            tooltip={
+              <>
+                <p>Minervini Trend Template — 1 point per condition met:</p>
+                <ol className="mt-1 space-y-0.5 list-decimal list-inside">
+                  <li>Price &gt; EMA 50</li>
+                  <li>Price &gt; EMA 150</li>
+                  <li>Price &gt; EMA 200</li>
+                  <li>EMA 50 &gt; 150 &gt; 200</li>
+                  <li>EMA 200 trending up</li>
+                  <li>Within 25% of 52-week high</li>
+                </ol>
+                <p className="mt-1">
+                  <span className="text-emerald-400">5–6</span> Strong ·{' '}
+                  <span className="text-amber-400">3–4</span> Watch ·{' '}
+                  <span className="text-red-400">0–2</span> Avoid
+                </p>
+              </>
+            }
+          />
+          <Stat
+            label="Off High"
+            value={`-${data.distanceFromHigh.toFixed(1)}%`}
+            color={data.distanceFromHigh <= 5 ? 'text-emerald-400' : data.distanceFromHigh >= 20 ? 'text-amber-400' : 'text-gray-300'}
+            tooltip={
+              <>
+                <p>How far the price is below its 52-week high.</p>
+                <ul className="mt-1 space-y-0.5">
+                  <li><span className="text-emerald-400 font-semibold">0–5%</span> — Near highs, breakout zone</li>
+                  <li><span className="text-gray-300 font-semibold">5–20%</span> — Pullback, possible re-entry</li>
+                  <li><span className="text-amber-400 font-semibold">&gt; 20%</span> — Deep pullback or downtrend</li>
+                </ul>
+              </>
+            }
+          />
+          {data.pattern && (
+            <div className="col-span-2">
+              <Stat
+                label="Pattern"
+                value={data.pattern}
+                color="text-blue-400"
+                tooltip={
+                  PATTERN_TIPS[data.pattern]
+                    ? <p>{PATTERN_TIPS[data.pattern]}</p>
+                    : <p>A candlestick pattern detected on the most recent daily candle.</p>
+                }
+              />
+            </div>
+          )}
         </div>
       </Link>
     </div>
@@ -412,14 +492,29 @@ function ErrorCard({ symbol, name, onRemove, onRetry }: { symbol: string; name: 
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: string; color: string }) {
+function Stat({ label, value, color, tooltip }: { label: string; value: string; color: string; tooltip?: ReactNode }) {
   return (
     <div>
-      <div className="text-gray-500 mb-0.5">{label}</div>
+      <div className="text-gray-500 mb-0.5 inline-flex items-center gap-0">
+        {label}
+        {tooltip && (
+          <InfoTooltip title={label} side="top">
+            {tooltip}
+          </InfoTooltip>
+        )}
+      </div>
       <div className={`font-semibold ${color}`}>{value}</div>
     </div>
   );
 }
+
+const PATTERN_TIPS: Record<string, string> = {
+  'Pin Bar':           'Long wick with a small body — shows strong rejection of a price level. A bullish pin bar has a long lower wick (buyers stepped in and pushed price back up). Great reversal signal at support.',
+  'Bullish Engulfing': 'A large green candle that fully engulfs the previous red candle\'s body. Signals that buyers have overwhelmed sellers — often marks the start of an upward move.',
+  'Bearish Engulfing': 'A large red candle that fully engulfs the previous green candle\'s body. Signals that sellers have overwhelmed buyers — often marks the start of a downward move.',
+  'Inside Bar':        'The entire candle range (high-to-low) fits within the previous candle. Shows market consolidation or indecision. A breakout from an inside bar often leads to a sharp directional move.',
+  'Breakout Candle':   'A large-bodied candle closing near its high with a volume spike. Signals strong conviction from buyers — often marks the start of a new upward leg with momentum.',
+};
 
 function formatMktCap(mCapM: number): string {
   if (mCapM >= 1_000_000) return `$${(mCapM / 1_000_000).toFixed(1)}T`;
