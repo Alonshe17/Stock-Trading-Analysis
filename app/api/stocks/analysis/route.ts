@@ -26,14 +26,24 @@ export async function GET(req: NextRequest) {
     // Market cap comes from the profile endpoint (already in millions USD)
     if (profile?.marketCap) result.marketCap = profile.marketCap;
 
-    // Extra fundamental fields for watchlist health badge
+    // Extra fundamental fields for watchlist health badge (7-criteria scoring)
     const extra = {
-      revenueGrowth:  financials?.revenueGrowthYoy != null ? financials.revenueGrowthYoy / 100 : null,
-      profitMargin:   financials?.netMargin        != null ? financials.netMargin        / 100 : null,
-      analystRating:  financials?.recommendation   ?? null,
-      analystBuy:     financials?.analystBuy  ?? 0,
-      analystHold:    financials?.analystHold ?? 0,
-      analystSell:    financials?.analystSell ?? 0,
+      // Growth
+      revenueGrowth:    financials?.revenueGrowthYoy  ?? null,   // % — e.g. 12.5 means 12.5%
+      // Profitability
+      roeTTM:           financials?.roeTTM            ?? null,   // % — e.g. 18.3 means 18.3%
+      operatingMargin:  financials?.operatingMargin   ?? null,   // %
+      profitMargin:     financials?.netMargin         ?? null,   // %
+      // Leverage & Liquidity
+      debtToEquity:     financials?.debtToEquity      ?? null,   // % — e.g. 80 means 0.8x D/E
+      currentRatio:     financials?.currentRatio      ?? null,   // ratio — e.g. 1.8
+      // Cash flow
+      cashFlowPerShare: financials?.cashFlowPerShare  ?? null,   // $ per share
+      // Analyst consensus
+      analystRating:    financials?.recommendation    ?? null,
+      analystBuy:       financials?.analystBuy  ?? 0,
+      analystHold:      financials?.analystHold ?? 0,
+      analystSell:      financials?.analystSell ?? 0,
     };
 
     return NextResponse.json({ ...result, marketRegime, name: profile?.name ?? sym, ...extra });

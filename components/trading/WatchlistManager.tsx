@@ -17,26 +17,81 @@ type StockData = AnalysisResult & {
   name: string;
   marketRegime: string;
   earningsDate?: string | null;
-  // Extra fundamentals from Finnhub (added in analysis API route)
-  revenueGrowth:  number | null;
-  profitMargin:   number | null;
-  analystRating:  string | null;
-  analystBuy:     number;
-  analystHold:    number;
-  analystSell:    number;
+  // Fundamentals from Finnhub (piped through analysis API route)
+  revenueGrowth:    number | null;  // YoY % e.g. 12.5
+  roeTTM:           number | null;  // % e.g. 18.3
+  operatingMargin:  number | null;  // %
+  profitMargin:     number | null;  // %
+  debtToEquity:     number | null;  // % where 100 = 1.0x D/E ratio
+  currentRatio:     number | null;  // ratio e.g. 1.8
+  cashFlowPerShare: number | null;  // $ per share
+  analystRating:    string | null;
+  analystBuy:       number;
+  analystHold:      number;
+  analystSell:      number;
 };
 
-function fundamentalHealth(data: StockData): { label: string; color: string } | null {
-  const { revenueGrowth, profitMargin, analystRating } = data;
-  const hasData = revenueGrowth !== null || profitMargin !== null || analystRating !== null;
-  if (!hasData) return null;
-  let score = 0;
-  if (revenueGrowth !== null && revenueGrowth > 0.05) score++;
-  if (profitMargin  !== null && profitMargin  > 0.10) score++;
-  if (analystRating === 'Buy' || analystRating === 'Strong Buy') score++;
-  if (score >= 2) return { label: 'Strong Fundamentals',   color: 'text-emerald-400' };
-  if (score === 1) return { label: 'Moderate Fundamentals', color: 'text-amber-400' };
-  return               { label: 'Weak Fundamentals',       color: 'text-red-400' };
+/**
+ * 7-criteria fundamental health score based on professional investor standards:
+ *
+ * 1. ROE ≥ 15%          — Buffett's minimum capital efficiency threshold
+ * 2. Revenue Growth ≥ 10% — Healthy top-line expansion (YoY)
+ * 3. Operating Margin ≥ 10% — Efficient operations before interest/tax
+ * 4. Net Margin ≥ 8%    — Profitable after all costs (near S&P 500 avg)
+ * 5. Debt/Equity ≤ 100% — Conservative leverage (Graham: prefer <1.0x D/E)
+ * 6. Current Ratio ≥ 1.5 — Graham's liquidity standard
+ * 7. Cash Flow/Share > 0 — Positive free cash generation
+ *
+ * Score 5–7 → Strong · 3–4 → Moderate · 0–2 → Weak
+ * Requires ≥ 3 data points; otherwise returns null (hidden).
+ */
+function fundamentalHealth(data: StockData): {
+  label: string;
+  color: string;
+  score: number;
+  max: number;
+  breakdown: { label: string; pass: boolean | null }[];
+} | null {
+  const criteria: { label: string; pass: boolean | null }[] = [
+    {
+      label: `ROE ≥ 15% (${data.roeTTM !== null ? data.roeTTM.toFixed(1) + '%' : '—'})`,
+      pass:  data.roeTTM !== null ? data.roeTTM >= 15 : null,
+    },
+    {
+      label: `Rev Growth ≥ 10% (${data.revenueGrowth !== null ? data.revenueGrowth.toFixed(1) + '%' : '—'})`,
+      pass:  data.revenueGrowth !== null ? data.revenueGrowth >= 10 : null,
+    },
+    {
+      label: `Op Margin ≥ 10% (${data.operatingMargin !== null ? data.operatingMargin.toFixed(1) + '%' : '—'})`,
+      pass:  data.operatingMargin !== null ? data.operatingMargin >= 10 : null,
+    },
+    {
+      label: `Net Margin ≥ 8% (${data.profitMargin !== null ? data.profitMargin.toFixed(1) + '%' : '—'})`,
+      pass:  data.profitMargin !== null ? data.profitMargin >= 8 : null,
+    },
+    {
+      label: `Debt/Equity ≤ 1.0x (${data.debtToEquity !== null ? (data.debtToEquity / 100).toFixed(2) + 'x' : '—'})`,
+      pass:  data.debtToEquity !== null ? data.debtToEquity <= 100 : null,
+    },
+    {
+      label: `Current Ratio ≥ 1.5 (${data.currentRatio !== null ? data.currentRatio.toFixed(2) : '—'})`,
+      pass:  data.currentRatio !== null ? data.currentRatio >= 1.5 : null,
+    },
+    {
+      label: `Cash Flow/Share > 0 (${data.cashFlowPerShare !== null ? '$' + data.cashFlowPerShare.toFixed(2) : '—'})`,
+      pass:  data.cashFlowPerShare !== null ? data.cashFlowPerShare > 0 : null,
+    },
+  ];
+
+  const available = criteria.filter((c) => c.pass !== null);
+  if (available.length < 3) return null;  // not enough data to score
+
+  const score = available.filter((c) => c.pass === true).length;
+  const max   = available.length;
+
+  if (score >= 5) return { label: 'Strong',   color: 'text-emerald-400', score, max, breakdown: criteria };
+  if (score >= 3) return { label: 'Moderate', color: 'text-amber-400',  score, max, breakdown: criteria };
+  return               { label: 'Weak',     color: 'text-red-400',     score, max, breakdown: criteria };
 }
 
 const ANALYST_COLORS: Record<string, string> = {
@@ -350,7 +405,28 @@ function StockCardEditable({
         return (
           <div className="flex items-center gap-2 flex-wrap mb-2">
             {health && (
-              <span className={`text-xs font-medium ${health.color}`}>{health.label}</span>
+              <span className={`inline-flex items-center text-xs font-medium ${health.color}`}>
+                {health.label} Fundamentals ({health.score}/{health.max})
+                <InfoTooltip title="Fundamental Health Score" side="top" width="w-80">
+                  <p className="mb-1.5">
+                    Score <span className="font-semibold text-white">{health.score}/{health.max}</span> based on 7 professional criteria
+                    (Buffett · Graham · institutional screens):
+                  </p>
+                  <ul className="space-y-1">
+                    {health.breakdown.map((c) => (
+                      <li key={c.label} className="flex items-start gap-1.5">
+                        <span className={`mt-0.5 shrink-0 ${c.pass === true ? 'text-emerald-400' : c.pass === false ? 'text-red-400' : 'text-gray-600'}`}>
+                          {c.pass === true ? '✓' : c.pass === false ? '✗' : '—'}
+                        </span>
+                        <span className={c.pass === null ? 'text-gray-600' : 'text-gray-300'}>{c.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-gray-500">
+                    ≥5 Strong · 3–4 Moderate · &lt;3 Weak
+                  </p>
+                </InfoTooltip>
+              </span>
             )}
             {ratingCls && data.analystRating && (
               <span className={`text-xs border rounded px-1.5 py-0.5 font-medium ${ratingCls}`}>
