@@ -214,6 +214,96 @@ export async function getQuoteFundamentals(symbol: string): Promise<QuoteFundame
   }
 }
 
+export type Financials = {
+  // Valuation
+  peRatio: number | null;
+  forwardPE: number | null;
+  pbRatio: number | null;
+  eps: number | null;
+  // Profitability
+  revenue: number | null;        // TTM, millions USD
+  revenueGrowth: number | null;  // YoY %
+  grossMargin: number | null;    // %
+  operatingMargin: number | null;// %
+  profitMargin: number | null;   // %
+  returnOnEquity: number | null; // %
+  returnOnAssets: number | null; // %
+  // Cash Flow
+  operatingCashFlow: number | null; // millions USD
+  freeCashFlow: number | null;      // millions USD
+  // Balance Sheet
+  totalCash: number | null;    // millions USD
+  totalDebt: number | null;    // millions USD
+  debtToEquity: number | null; // ratio (%)
+  // Analyst
+  targetPrice: number | null;
+  analystCount: number | null;
+  recommendation: string | null; // "Buy", "Hold", etc.
+  // Dividend
+  dividendYield: number | null; // %
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rawNum(obj: Record<string, any>, key: string): number | null {
+  const v = obj?.[key]?.raw;
+  return typeof v === 'number' ? v : null;
+}
+
+export async function getFinancials(symbol: string): Promise<Financials | null> {
+  const yfSymbol = toYahooSymbol(symbol);
+  const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${yfSymbol}?modules=financialData,defaultKeyStatistics,summaryDetail`;
+  try {
+    const res = await fetch(url, { headers: YF_HEADERS, next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const result = data?.quoteSummary?.result?.[0];
+    if (!result) return null;
+
+    const fd = result.financialData ?? {};
+    const ks = result.defaultKeyStatistics ?? {};
+    const sd = result.summaryDetail ?? {};
+
+    // Map recommendation mean to label
+    const recMean = rawNum(fd, 'recommendationMean');
+    let recommendation: string | null = null;
+    if (recMean !== null) {
+      if (recMean <= 1.5) recommendation = 'Strong Buy';
+      else if (recMean <= 2.5) recommendation = 'Buy';
+      else if (recMean <= 3.5) recommendation = 'Hold';
+      else if (recMean <= 4.5) recommendation = 'Underperform';
+      else recommendation = 'Sell';
+    }
+
+    const toM = (v: number | null) => (v !== null ? v / 1_000_000 : null);
+    const toPct = (v: number | null) => (v !== null ? v * 100 : null);
+
+    return {
+      peRatio: rawNum(sd, 'trailingPE'),
+      forwardPE: rawNum(ks, 'forwardPE'),
+      pbRatio: rawNum(ks, 'priceToBook'),
+      eps: rawNum(ks, 'trailingEps'),
+      revenue: toM(rawNum(fd, 'totalRevenue')),
+      revenueGrowth: toPct(rawNum(fd, 'revenueGrowth')),
+      grossMargin: toPct(rawNum(fd, 'grossMargins')),
+      operatingMargin: toPct(rawNum(fd, 'operatingMargins')),
+      profitMargin: toPct(rawNum(fd, 'profitMargins')),
+      returnOnEquity: toPct(rawNum(fd, 'returnOnEquity')),
+      returnOnAssets: toPct(rawNum(fd, 'returnOnAssets')),
+      operatingCashFlow: toM(rawNum(fd, 'operatingCashflow')),
+      freeCashFlow: toM(rawNum(fd, 'freeCashflow')),
+      totalCash: toM(rawNum(fd, 'totalCash')),
+      totalDebt: toM(rawNum(fd, 'totalDebt')),
+      debtToEquity: rawNum(fd, 'debtToEquity'),
+      targetPrice: rawNum(fd, 'targetMeanPrice'),
+      analystCount: rawNum(fd, 'numberOfAnalystOpinions'),
+      recommendation,
+      dividendYield: toPct(rawNum(sd, 'dividendYield')),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getMarketNews(category: 'general' | 'forex' | 'crypto' = 'general'): Promise<NewsItem[]> {
   const key = getFinnhubKey();
   if (!key) return [];

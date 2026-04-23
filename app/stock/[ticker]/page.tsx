@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getCandles, getProfile, getUpcomingEarnings, getCompanyNews } from '@/lib/finnhub';
+import { getCandles, getProfile, getUpcomingEarnings, getCompanyNews, getFinancials } from '@/lib/finnhub';
 import { analyze, calcMarketRegime } from '@/lib/analysis';
 import { TechnicalPanel } from '@/components/trading/TechnicalPanel';
 import { SwingSetup } from '@/components/trading/SwingSetup';
@@ -9,6 +9,7 @@ import { RiskCalculator } from '@/components/trading/RiskCalculator';
 import { CandlestickChart } from '@/components/trading/CandlestickChart';
 import { NewsPanel } from '@/components/trading/NewsPanel';
 import { PriceAlertBell } from '@/components/trading/PriceAlertBell';
+import { FundamentalsPanel } from '@/components/trading/FundamentalsPanel';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -18,12 +19,13 @@ type Props = { params: Promise<{ ticker: string }> };
 async function getData(ticker: string) {
   const symbol = ticker.toUpperCase();
 
-  const [dailyCandles, candles15m, spyCandles, profile, news] = await Promise.all([
+  const [dailyCandles, candles15m, spyCandles, profile, news, financials] = await Promise.all([
     getCandles(symbol, 'D').catch(() => []),
     getCandles(symbol, '15').catch(() => []),
     getCandles('SPY', 'D').catch(() => []),
     getProfile(symbol).catch(() => null),
     getCompanyNews(symbol, 7).catch(() => []),
+    getFinancials(symbol).catch(() => null),
   ]);
 
   if (dailyCandles.length === 0) return null;
@@ -36,7 +38,7 @@ async function getData(ticker: string) {
   const earnings = await getUpcomingEarnings(today, inFive).catch(() => []);
   const earningsEvent = earnings.find((e) => e.symbol === symbol);
 
-  return { analysis, dailyCandles, candles15m, profile, marketRegime, earningsEvent, news };
+  return { analysis, dailyCandles, candles15m, profile, marketRegime, earningsEvent, news, financials };
 }
 
 export default async function StockPage({ params }: Props) {
@@ -44,7 +46,7 @@ export default async function StockPage({ params }: Props) {
   const data = await getData(ticker);
   if (!data) notFound();
 
-  const { analysis: a, dailyCandles, candles15m, profile, earningsEvent, news } = data;
+  const { analysis: a, dailyCandles, candles15m, profile, earningsEvent, news, financials } = data;
   const changePos = a.change >= 0;
 
   return (
@@ -111,6 +113,13 @@ export default async function StockPage({ params }: Props) {
             <NewsPanel news={news} title={`${a.symbol} News`} />
           </div>
         </div>
+
+        {/* Fundamentals */}
+        {financials && (
+          <div className="mt-6">
+            <FundamentalsPanel financials={financials} symbol={a.symbol} />
+          </div>
+        )}
 
         {/* Strategy note */}
         <div className="mt-6 rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-xs text-gray-500">
