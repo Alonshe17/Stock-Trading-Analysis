@@ -501,49 +501,67 @@ export function getLongTermTrend(
   };
 }
 
+/**
+ * 7-criteria fundamental health score — identical to the Watchlist scoring.
+ *
+ * 1. ROE ≥ 15%          — Buffett's capital efficiency threshold
+ * 2. Revenue Growth ≥ 10% — Healthy top-line expansion (revenueGrowth is stored as decimal)
+ * 3. Op Margin ≥ 10%    — Efficient operations before interest/tax
+ * 4. Net Margin ≥ 8%    — Profitable after all costs (profitMargin stored as decimal)
+ * 5. Debt/Equity ≤ 100% — Conservative leverage (100 = 1.0x D/E in Finnhub units)
+ * 6. Current Ratio ≥ 1.5 — Graham's liquidity standard
+ * 7. Cash Flow/Share > 0 — Positive free cash generation
+ *
+ * Score 5–7 → Strong · 3–4 → Moderate · 0–2 → Weak
+ * Requires ≥ 3 data points; otherwise returns Unknown.
+ */
 export function getFundamentalHealth(rec: Recommendation): {
   label: 'Strong' | 'Moderate' | 'Weak' | 'Unknown';
   color: string;
-  score: number; // 0-4
+  score: number;
   max: number;
   breakdown: { label: string; pass: boolean | null }[];
 } {
-  const { revenueGrowth, earningsGrowth, profitMargin, analystRating } = rec;
-
   const breakdown: { label: string; pass: boolean | null }[] = [
     {
-      label: `Rev Growth > 5% (${revenueGrowth !== null ? (revenueGrowth * 100).toFixed(1) + '%' : '—'})`,
-      pass: revenueGrowth !== null ? revenueGrowth > 0.05 : null,
+      label: `ROE ≥ 15% (${rec.roeTTM != null ? rec.roeTTM.toFixed(1) + '%' : '—'})`,
+      pass: rec.roeTTM != null ? rec.roeTTM >= 15 : null,
     },
     {
-      label: `EPS Growth > 0% (${earningsGrowth !== null ? (earningsGrowth * 100).toFixed(1) + '%' : '—'})`,
-      pass: earningsGrowth !== null ? earningsGrowth > 0 : null,
+      label: `Rev Growth ≥ 10% (${rec.revenueGrowth != null ? (rec.revenueGrowth * 100).toFixed(1) + '%' : '—'})`,
+      pass: rec.revenueGrowth != null ? rec.revenueGrowth >= 0.10 : null,
     },
     {
-      label: `Net Margin > 10% (${profitMargin !== null ? (profitMargin * 100).toFixed(1) + '%' : '—'})`,
-      pass: profitMargin !== null ? profitMargin > 0.10 : null,
+      label: `Op Margin ≥ 10% (${rec.operatingMargin != null ? rec.operatingMargin.toFixed(1) + '%' : '—'})`,
+      pass: rec.operatingMargin != null ? rec.operatingMargin >= 10 : null,
     },
     {
-      label: `Analyst Rating: Buy / Strong Buy (${analystRating ?? '—'})`,
-      pass: analystRating !== null ? (analystRating === 'Buy' || analystRating === 'Strong Buy') : null,
+      label: `Net Margin ≥ 8% (${rec.profitMargin != null ? (rec.profitMargin * 100).toFixed(1) + '%' : '—'})`,
+      pass: rec.profitMargin != null ? rec.profitMargin >= 0.08 : null,
+    },
+    {
+      label: `Debt/Equity ≤ 1.0x (${rec.debtToEquity != null ? (rec.debtToEquity / 100).toFixed(2) + 'x' : '—'})`,
+      pass: rec.debtToEquity != null ? rec.debtToEquity <= 100 : null,
+    },
+    {
+      label: `Current Ratio ≥ 1.5 (${rec.currentRatio != null ? rec.currentRatio.toFixed(2) : '—'})`,
+      pass: rec.currentRatio != null ? rec.currentRatio >= 1.5 : null,
+    },
+    {
+      label: `Cash Flow/Share > 0 (${rec.cashFlowPerShare != null ? '$' + rec.cashFlowPerShare.toFixed(2) : '—'})`,
+      pass: rec.cashFlowPerShare != null ? rec.cashFlowPerShare > 0 : null,
     },
   ];
 
   const available = breakdown.filter((c) => c.pass !== null);
-
-  // If we have no data at all, return Unknown
-  if (available.length === 0) {
+  if (available.length < 3) {
     return { label: 'Unknown', color: 'text-gray-500', score: 0, max: 0, breakdown };
   }
 
   const score = available.filter((c) => c.pass === true).length;
-  const max = available.length;
+  const max   = available.length;
 
-  if (score >= 3) {
-    return { label: 'Strong', color: 'text-emerald-400', score, max, breakdown };
-  }
-  if (score === 2) {
-    return { label: 'Moderate', color: 'text-amber-400', score, max, breakdown };
-  }
-  return { label: 'Weak', color: 'text-red-400', score, max, breakdown };
+  if (score >= 5) return { label: 'Strong',   color: 'text-emerald-400', score, max, breakdown };
+  if (score >= 3) return { label: 'Moderate', color: 'text-amber-400',   score, max, breakdown };
+  return               { label: 'Weak',     color: 'text-red-400',     score, max, breakdown };
 }

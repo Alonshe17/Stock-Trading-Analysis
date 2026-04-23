@@ -145,7 +145,7 @@ export function TrendCard({
                     </li>
                   ))}
                 </ul>
-                <p className="mt-1.5 text-gray-500 text-xs">≥3 Strong · 2 Moderate · &lt;2 Weak</p>
+                <p className="mt-1.5 text-gray-500 text-xs">5–7 Strong · 3–4 Moderate · 0–2 Weak</p>
                 <p className="mt-1 text-gray-600 text-xs">📚 W. Buffett (Annual Letters) · B. Graham, <em>The Intelligent Investor</em> (1949)</p>
               </InfoTooltip>
             </span>

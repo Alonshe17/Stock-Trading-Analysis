@@ -31,11 +31,16 @@ export type Recommendation = {
   target: number;
   targetPct: number;
   riskReward: number;
-  // Fundamentals
-  peRatio: number | null;
-  revenueGrowth: number | null;
-  earningsGrowth: number | null;
-  profitMargin: number | null;
+  // Fundamentals (raw Finnhub units — same as Watchlist)
+  peRatio:          number | null;
+  revenueGrowth:    number | null;  // decimal e.g. 0.12 = 12%
+  earningsGrowth:   number | null;
+  profitMargin:     number | null;  // decimal e.g. 0.15 = 15%
+  roeTTM:           number | null;  // % e.g. 18.3
+  operatingMargin:  number | null;  // % e.g. 12.4
+  debtToEquity:     number | null;  // % where 100 = 1.0x D/E
+  currentRatio:     number | null;
+  cashFlowPerShare: number | null;  // $
   // Analyst
   analystRating: string | null;
   targetMeanPrice: number | null;
@@ -167,15 +172,17 @@ export async function fetchRecommendations(
 
       // Map Finnhub financials → Recommendation fields
       // Finnhub returns growth values as %, TrendCard expects decimals (÷100)
-      const peRatio = financials?.peTTM ?? null;
-      const revenueGrowth = financials?.revenueGrowthYoy !== null && financials?.revenueGrowthYoy !== undefined
-        ? financials.revenueGrowthYoy / 100
-        : null;
-      const earningsGrowth: number | null = null;  // not available on Finnhub free tier
-      const profitMargin = financials?.netMargin !== null && financials?.netMargin !== undefined
-        ? financials.netMargin / 100
-        : null;
-      const analystRating = financials?.recommendation ?? null;
+      const peRatio         = financials?.peTTM ?? null;
+      const revenueGrowth   = financials?.revenueGrowthYoy != null ? financials.revenueGrowthYoy / 100 : null;
+      const earningsGrowth: number | null = null; // not on Finnhub free tier
+      const profitMargin    = financials?.netMargin != null ? financials.netMargin / 100 : null;
+      // Additional fields for 7-criteria health score (raw Finnhub units, same as Watchlist)
+      const roeTTM          = financials?.roeTTM          ?? null;
+      const operatingMargin = financials?.operatingMargin ?? null;
+      const debtToEquity    = financials?.debtToEquity    ?? null;
+      const currentRatio    = financials?.currentRatio    ?? null;
+      const cashFlowPerShare= financials?.cashFlowPerShare?? null;
+      const analystRating   = financials?.recommendation  ?? null;
       const targetMeanPrice: number | null = null;  // requires Finnhub paid tier
       const targetHighPrice: number | null = null;
       const targetLowPrice: number | null = null;
@@ -216,6 +223,11 @@ export async function fetchRecommendations(
         revenueGrowth,
         earningsGrowth,
         profitMargin,
+        roeTTM,
+        operatingMargin,
+        debtToEquity,
+        currentRatio,
+        cashFlowPerShare,
         analystRating,
         targetMeanPrice,
         targetHighPrice,
