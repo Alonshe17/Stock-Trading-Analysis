@@ -121,6 +121,7 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
   const [input, setInput] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+  const [refreshingAll, setRefreshingAll] = useState(false);
 
   // Helper — write the list to localStorage immediately (synchronous, no effect lag)
   function persist(list: WatchlistEntry[]) {
@@ -234,11 +235,27 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
     fetchStock(symbol);
   }
 
+  async function handleRefreshAll() {
+    setRefreshingAll(true);
+    // Clear all existing data so cards show skeleton
+    setDataMap({});
+    setLoadMap({});
+    // Re-fetch all with stagger to avoid rate limits
+    await Promise.all(
+      watchlist.map((w, i) =>
+        new Promise<void>((resolve) =>
+          setTimeout(() => fetchStock(w.symbol).then(() => resolve()), i * 400)
+        )
+      )
+    );
+    setRefreshingAll(false);
+  }
+
   return (
     <div>
       {/* Add ticker input */}
       <div className="mb-6">
-        <div className="flex gap-2 max-w-sm">
+        <div className="flex gap-2 max-w-sm flex-wrap sm:flex-nowrap">
           <input
             type="text"
             value={input}
@@ -263,6 +280,23 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
               </svg>
             )}
             Add
+          </button>
+
+          {/* Refresh All */}
+          <button
+            onClick={handleRefreshAll}
+            disabled={refreshingAll || watchlist.length === 0}
+            title="Refresh all prices"
+            className="rounded-lg border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm font-semibold text-gray-300 hover:border-gray-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 whitespace-nowrap"
+          >
+            <svg
+              className={`h-4 w-4 ${refreshingAll ? 'animate-spin' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {refreshingAll ? 'Refreshing…' : 'Refresh All'}
           </button>
         </div>
         {addError && <p className="text-red-400 text-xs mt-2">{addError}</p>}
