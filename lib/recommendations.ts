@@ -182,14 +182,15 @@ export async function fetchRecommendations(
       const debtToEquity    = financials?.debtToEquity    ?? null;
       const currentRatio    = financials?.currentRatio    ?? null;
       const cashFlowPerShare= financials?.cashFlowPerShare?? null;
-      const analystRating   = financials?.recommendation  ?? null;
-      const targetMeanPrice: number | null = null;  // requires Finnhub paid tier
-      const targetHighPrice: number | null = null;
-      const targetLowPrice: number | null = null;
+      const analystRating   = financials?.recommendation ?? null;
+      const targetMeanPrice = financials?.targetMean    ?? null;
+      const targetHighPrice = financials?.targetHigh    ?? null;
+      const targetLowPrice  = financials?.targetLow     ?? null;
       const numberOfAnalysts =
         (financials?.analystBuy ?? 0) + (financials?.analystHold ?? 0) + (financials?.analystSell ?? 0);
-
-      const analystUpside: number | null = null;  // no target price on free tier
+      const analystUpside = targetMeanPrice != null && price > 0
+        ? ((targetMeanPrice - price) / price) * 100
+        : null;
 
       const setup = calcTradeSetup(
         analysis.signal,

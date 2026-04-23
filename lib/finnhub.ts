@@ -242,6 +242,10 @@ export type Financials = {
   analystHold: number;
   analystSell: number;
   recommendation: string | null;
+  // Analyst price targets from /stock/price-target (free tier)
+  targetMean:   number | null;
+  targetHigh:   number | null;
+  targetLow:    number | null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -255,10 +259,11 @@ export async function getFinancials(symbol: string): Promise<Financials | null> 
   if (!key) return null;
 
   try {
-    // Fetch metrics + analyst recommendations in parallel
-    const [metricRes, recRes] = await Promise.all([
+    // Fetch metrics, analyst recommendations, and price targets in parallel
+    const [metricRes, recRes, ptRes] = await Promise.all([
       fetch(`${FINNHUB_BASE}/stock/metric?symbol=${symbol}&metric=all&token=${key}`, { next: { revalidate: 3600 } }),
       fetch(`${FINNHUB_BASE}/stock/recommendation?symbol=${symbol}&token=${key}`, { next: { revalidate: 3600 } }),
+      fetch(`${FINNHUB_BASE}/stock/price-target?symbol=${symbol}&token=${key}`, { next: { revalidate: 3600 } }),
     ]);
 
     if (!metricRes.ok) return null;
@@ -287,6 +292,19 @@ export async function getFinancials(symbol: string): Promise<Financials | null> 
       }
     }
 
+    // Price targets from /stock/price-target (free tier)
+    let targetMean: number | null = null;
+    let targetHigh: number | null = null;
+    let targetLow:  number | null = null;
+    if (ptRes.ok) {
+      const ptData = await ptRes.json();
+      if (ptData && typeof ptData === 'object') {
+        targetMean = typeof ptData.targetMean === 'number' && isFinite(ptData.targetMean) ? ptData.targetMean : null;
+        targetHigh = typeof ptData.targetHigh === 'number' && isFinite(ptData.targetHigh) ? ptData.targetHigh : null;
+        targetLow  = typeof ptData.targetLow  === 'number' && isFinite(ptData.targetLow)  ? ptData.targetLow  : null;
+      }
+    }
+
     return {
       peTTM:            metricNum(m, 'peTTM'),
       pfcfTTM:          metricNum(m, 'pfcfShareTTM'),
@@ -309,6 +327,9 @@ export async function getFinancials(symbol: string): Promise<Financials | null> 
       analystHold,
       analystSell,
       recommendation,
+      targetMean,
+      targetHigh,
+      targetLow,
     };
   } catch {
     return null;
