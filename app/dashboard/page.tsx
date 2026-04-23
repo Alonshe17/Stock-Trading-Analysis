@@ -97,6 +97,9 @@ export default async function DashboardPage() {
           <Link href="/alerts" className="rounded-lg border border-gray-700 bg-gray-900 px-4 py-2 text-sm text-gray-300 hover:border-gray-500 transition">
             Email Alerts →
           </Link>
+          <Link href="/methodology" className="rounded-lg border border-gray-700 bg-gray-900 px-4 py-2 text-sm text-gray-500 hover:border-gray-500 transition">
+            Methodology →
+          </Link>
         </div>
 
         <h2 className="text-base font-semibold text-gray-300 mb-3">Watchlist Overview</h2>

@@ -425,6 +425,7 @@ function StockCardEditable({
                   <p className="mt-1.5 text-gray-500">
                     ≥5 Strong · 3–4 Moderate · &lt;3 Weak
                   </p>
+                  <p className="mt-1 text-gray-600 text-xs">📚 W. Buffett (Annual Letters) · B. Graham, <em>The Intelligent Investor</em> (1949) · See <a href="/methodology" className="underline">Methodology</a></p>
                 </InfoTooltip>
               </span>
             )}
@@ -454,6 +455,7 @@ function StockCardEditable({
                   <li><span className="text-gray-300 font-semibold">35–70</span> — Neutral: healthy trend range</li>
                   <li><span className="text-red-400 font-semibold">&gt; 70</span> — Overbought: pullback risk</li>
                 </ul>
+                <p className="mt-1 text-gray-600 text-xs">📚 J.W. Wilder Jr., <em>New Concepts in Technical Trading Systems</em> (1978)</p>
               </>
             }
           />
@@ -470,6 +472,7 @@ function StockCardEditable({
                   <li><span className="text-red-400 font-semibold">&lt; 1%</span> — Low volatility, smaller moves</li>
                 </ul>
                 <p className="mt-1 text-gray-400">Used to size stops: stop = entry − 1.5× ATR.</p>
+                <p className="mt-1 text-gray-600 text-xs">📚 J.W. Wilder Jr., <em>New Concepts in Technical Trading Systems</em> (1978)</p>
               </>
             }
           />
@@ -493,6 +496,7 @@ function StockCardEditable({
                   <span className="text-amber-400">3–4</span> Watch ·{' '}
                   <span className="text-red-400">0–2</span> Avoid
                 </p>
+                <p className="mt-1 text-gray-600 text-xs">📚 M. Minervini, <em>Trade Like a Stock Market Wizard</em> (2013)</p>
               </>
             }
           />
@@ -508,6 +512,7 @@ function StockCardEditable({
                   <li><span className="text-gray-300 font-semibold">5–20%</span> — Pullback, possible re-entry</li>
                   <li><span className="text-amber-400 font-semibold">&gt; 20%</span> — Deep pullback or downtrend</li>
                 </ul>
+                <p className="mt-1 text-gray-600 text-xs">📚 M. Minervini, <em>Trade Like a Stock Market Wizard</em> (2013) · See <a href="/methodology" className="underline">Methodology</a></p>
               </>
             }
           />
@@ -518,9 +523,13 @@ function StockCardEditable({
                 value={data.pattern}
                 color="text-blue-400"
                 tooltip={
-                  PATTERN_TIPS[data.pattern]
-                    ? <p>{PATTERN_TIPS[data.pattern]}</p>
-                    : <p>A candlestick pattern detected on the most recent daily candle.</p>
+                  <>
+                    {PATTERN_TIPS[data.pattern]
+                      ? <p>{PATTERN_TIPS[data.pattern]}</p>
+                      : <p>A candlestick pattern detected on the most recent daily candle.</p>
+                    }
+                    <p className="mt-1 text-gray-600 text-xs">📚 S. Nison, <em>Japanese Candlestick Charting Techniques</em> (1991)</p>
+                  </>
                 }
               />
             </div>

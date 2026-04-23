@@ -20,6 +20,7 @@ export default function HomePage() {
           <Link href="/screener"        className="text-gray-400 hover:text-white transition">Screener</Link>
           <Link href="/watchlist"       className="text-gray-400 hover:text-white transition">Watchlist</Link>
           <Link href="/alerts"          className="text-gray-400 hover:text-white transition">Alerts</Link>
+          <Link href="/methodology"     className="text-gray-500 hover:text-gray-400 transition text-xs">Methodology</Link>
         </nav>
 
         {/* Mobile hamburger */}

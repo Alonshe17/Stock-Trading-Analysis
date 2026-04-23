@@ -173,7 +173,7 @@ export async function getCompanyNews(symbol: string, days = 7): Promise<NewsItem
     const res = await fetch(url, { next: { revalidate: 1800 } }); // cache 30 min
     if (!res.ok) return [];
     const data = await res.json();
-    return Array.isArray(data) ? data.slice(0, 10) : [];
+    return Array.isArray(data) ? data.slice(0, 15) : [];
   } catch {
     return [];
   }

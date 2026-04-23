@@ -7,7 +7,7 @@ import { SignalBadge } from '@/components/trading/SignalBadge';
 import { EarningsWarning } from '@/components/trading/EarningsWarning';
 import { RiskCalculator } from '@/components/trading/RiskCalculator';
 import { CandlestickChart } from '@/components/trading/CandlestickChart';
-import { NewsPanel } from '@/components/trading/NewsPanel';
+import { StockNewsPanel } from '@/components/trading/StockNewsPanel';
 import { PriceAlertBell } from '@/components/trading/PriceAlertBell';
 import { FundamentalsPanel } from '@/components/trading/FundamentalsPanel';
 import Link from 'next/link';
@@ -24,7 +24,7 @@ async function getData(ticker: string) {
     getCandles(symbol, '15').catch(() => []),
     getCandles('SPY', 'D').catch(() => []),
     getProfile(symbol).catch(() => null),
-    getCompanyNews(symbol, 7).catch(() => []),
+    getCompanyNews(symbol, 14).catch(() => []),
     getFinancials(symbol).catch(() => null),
   ]);
 
@@ -110,8 +110,12 @@ export default async function StockPage({ params }: Props) {
           </div>
           <div className="space-y-4">
             <SwingSetup a={a} />
-            <NewsPanel news={news} title={`${a.symbol} News`} />
           </div>
+        </div>
+
+        {/* News summary — full width for readability */}
+        <div className="mt-4">
+          <StockNewsPanel news={news} symbol={a.symbol} />
         </div>
 
         {/* Fundamentals */}
