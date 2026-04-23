@@ -11,6 +11,7 @@ import { StockNewsPanel } from '@/components/trading/StockNewsPanel';
 import { PriceAlertBell } from '@/components/trading/PriceAlertBell';
 import { FundamentalsPanel } from '@/components/trading/FundamentalsPanel';
 import Link from 'next/link';
+import { TradingNav } from '@/components/trading/TradingNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,11 +54,14 @@ export default async function StockPage({ params }: Props) {
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="max-w-7xl mx-auto px-4 py-8">
 
-        {/* Breadcrumb */}
-        <div className="text-sm text-gray-500 mb-4">
-          <Link href="/watchlist" className="hover:text-gray-300">Watchlist</Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-300">{a.symbol}</span>
+        {/* Top nav + breadcrumb */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-5">
+          <div className="text-sm text-gray-500">
+            <Link href="/watchlist" className="hover:text-gray-300">Watchlist</Link>
+            <span className="mx-2">/</span>
+            <span className="text-gray-300">{a.symbol}</span>
+          </div>
+          <TradingNav />
         </div>
 
         {/* Header */}
@@ -115,7 +119,7 @@ export default async function StockPage({ params }: Props) {
 
         {/* News summary — full width for readability */}
         <div className="mt-4">
-          <StockNewsPanel news={news} symbol={a.symbol} />
+          <StockNewsPanel news={news} symbol={a.symbol} companyName={profile?.name ?? ''} />
         </div>
 
         {/* Fundamentals */}

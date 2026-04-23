@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ScannerResults } from '@/components/trading/ScannerResults';
+import { TradingNav } from '@/components/trading/TradingNav';
 import type { ScanResult } from '@/lib/intraday';
 
 export default function ScannerPage() {
@@ -32,12 +33,15 @@ export default function ScannerPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-1">Stock Pick Scanner</h1>
-          <p className="text-gray-400 text-sm">
-            Scans US large-cap stocks for midday momentum — best used around 11 AM EST.
-            Filters for price &gt; $1, market cap &gt; $1B, volume &gt; 500K, then ranks by EMA 8 / EMA 200 relationship and volume pace.
-          </p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-1">Stock Pick Scanner</h1>
+            <p className="text-gray-400 text-sm">
+              Scans US large-cap stocks for midday momentum — best used around 11 AM EST.
+              Filters for price &gt; $1, market cap &gt; $1B, volume &gt; 500K, then ranks by EMA 8 / EMA 200 relationship and volume pace.
+            </p>
+          </div>
+          <TradingNav active="/scanner" />
         </div>
 
         {/* Criteria cards */}

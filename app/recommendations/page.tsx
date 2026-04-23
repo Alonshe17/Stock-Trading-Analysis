@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { TradingNav } from '@/components/trading/TradingNav';
 import { fetchYahooCandles } from '@/lib/yahoofetch';
 import { calcMarketRegime } from '@/lib/analysis';
 import { fetchRecommendations } from '@/lib/recommendations';
@@ -81,11 +82,14 @@ export default async function RecommendationsPage({ searchParams }: PageProps) {
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="max-w-[1700px] mx-auto px-4 py-8">
         {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Daily Recommendations</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Technical + fundamental analysis across global markets · Updated daily
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Daily Recommendations</h1>
+            <p className="text-gray-400 text-sm mt-1">
+              Technical + fundamental analysis across global markets · Updated daily
+            </p>
+          </div>
+          <TradingNav active="/recommendations" />
         </div>
 
         {/* Market Regime */}

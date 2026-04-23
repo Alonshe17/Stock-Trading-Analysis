@@ -505,36 +505,45 @@ export function getFundamentalHealth(rec: Recommendation): {
   label: 'Strong' | 'Moderate' | 'Weak' | 'Unknown';
   color: string;
   score: number; // 0-4
+  max: number;
+  breakdown: { label: string; pass: boolean | null }[];
 } {
   const { revenueGrowth, earningsGrowth, profitMargin, analystRating } = rec;
 
+  const breakdown: { label: string; pass: boolean | null }[] = [
+    {
+      label: `Rev Growth > 5% (${revenueGrowth !== null ? (revenueGrowth * 100).toFixed(1) + '%' : '—'})`,
+      pass: revenueGrowth !== null ? revenueGrowth > 0.05 : null,
+    },
+    {
+      label: `EPS Growth > 0% (${earningsGrowth !== null ? (earningsGrowth * 100).toFixed(1) + '%' : '—'})`,
+      pass: earningsGrowth !== null ? earningsGrowth > 0 : null,
+    },
+    {
+      label: `Net Margin > 10% (${profitMargin !== null ? (profitMargin * 100).toFixed(1) + '%' : '—'})`,
+      pass: profitMargin !== null ? profitMargin > 0.10 : null,
+    },
+    {
+      label: `Analyst Rating: Buy / Strong Buy (${analystRating ?? '—'})`,
+      pass: analystRating !== null ? (analystRating === 'Buy' || analystRating === 'Strong Buy') : null,
+    },
+  ];
+
+  const available = breakdown.filter((c) => c.pass !== null);
+
   // If we have no data at all, return Unknown
-  const dataPoints = [revenueGrowth, earningsGrowth, profitMargin, analystRating].filter(
-    (v) => v !== null && v !== undefined,
-  );
-  if (dataPoints.length === 0) {
-    return { label: 'Unknown', color: 'text-gray-500', score: 0 };
+  if (available.length === 0) {
+    return { label: 'Unknown', color: 'text-gray-500', score: 0, max: 0, breakdown };
   }
 
-  let score = 0;
-
-  // Revenue growth: 1 point if > 5%
-  if (revenueGrowth !== null && revenueGrowth > 0.05) score++;
-
-  // Earnings growth: 1 point if > 0%
-  if (earningsGrowth !== null && earningsGrowth > 0) score++;
-
-  // Profit margin: 1 point if > 10%
-  if (profitMargin !== null && profitMargin > 0.10) score++;
-
-  // Analyst rating: 1 point for Buy or Strong Buy
-  if (analystRating === 'Buy' || analystRating === 'Strong Buy') score++;
+  const score = available.filter((c) => c.pass === true).length;
+  const max = available.length;
 
   if (score >= 3) {
-    return { label: 'Strong', color: 'text-emerald-400', score };
+    return { label: 'Strong', color: 'text-emerald-400', score, max, breakdown };
   }
   if (score === 2) {
-    return { label: 'Moderate', color: 'text-amber-400', score };
+    return { label: 'Moderate', color: 'text-amber-400', score, max, breakdown };
   }
-  return { label: 'Weak', color: 'text-red-400', score };
+  return { label: 'Weak', color: 'text-red-400', score, max, breakdown };
 }

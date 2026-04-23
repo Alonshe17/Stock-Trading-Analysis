@@ -2,6 +2,26 @@
 
 import type { NewsItem } from '@/lib/finnhub';
 
+// ─── Relevance filter ─────────────────────────────────────────────────────────
+// Keeps only articles that mention the ticker OR the company name.
+// This removes off-topic market/crypto news that Finnhub sometimes includes.
+function isRelevant(item: NewsItem, symbol: string, companyName: string): boolean {
+  const text = `${item.headline} ${item.summary}`.toLowerCase();
+
+  // 1. Ticker symbol as a standalone word (e.g. "APLD", "TSLA")
+  const ticker = symbol.toLowerCase();
+  if (new RegExp(`\\b${ticker}\\b`).test(text)) return true;
+
+  // 2. First "significant" word of the company name (≥ 4 chars, not generic)
+  const SKIP_WORDS = new Set(['the', 'and', 'inc', 'corp', 'ltd', 'llc', 'plc', 'group']);
+  const significant = companyName
+    .split(/[\s,.()/]+/)
+    .find((w) => w.length >= 4 && !SKIP_WORDS.has(w.toLowerCase()));
+  if (significant && text.includes(significant.toLowerCase())) return true;
+
+  return false;
+}
+
 // ─── Simple keyword-based sentiment ─────────────────────────────────────────
 const BULLISH_WORDS = [
   'surge', 'surges', 'rally', 'rallies', 'beat', 'beats', 'record', 'upgrade',
@@ -52,12 +72,15 @@ function buildDigest(news: NewsItem[]): string {
 export function StockNewsPanel({
   news,
   symbol,
+  companyName = '',
 }: {
   news: NewsItem[];
   symbol: string;
+  companyName?: string;
 }) {
   const sorted = [...news]
     .filter((n) => n.headline)
+    .filter((n) => !companyName || isRelevant(n, symbol, companyName))
     .sort((a, b) => b.datetime - a.datetime)
     .slice(0, 8);
 

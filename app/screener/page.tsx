@@ -1,3 +1,4 @@
+import { TradingNav } from '@/components/trading/TradingNav';
 import { getCandles } from '@/lib/finnhub';
 import { calcMarketRegime } from '@/lib/analysis';
 import { runScreener } from '@/lib/screener';
@@ -48,12 +49,15 @@ export default async function ScreenerPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="max-w-[1700px] mx-auto px-4 py-8">
-        <div className="mb-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Large-Cap Screener</h1>
-            <p className="text-gray-400 text-sm mt-1">
-              S&P 500 large-caps screened for swing trade setups · Market cap &gt; $10B
-            </p>
+        <div className="mb-5 flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Large-Cap Screener</h1>
+              <p className="text-gray-400 text-sm mt-1">
+                S&P 500 large-caps screened for swing trade setups · Market cap &gt; $10B
+              </p>
+            </div>
+            <TradingNav active="/screener" />
           </div>
 
           {/* Cache status badge */}

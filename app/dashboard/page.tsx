@@ -6,6 +6,7 @@ import { StockCard } from '@/components/trading/StockCard';
 import { SignalBadge } from '@/components/trading/SignalBadge';
 import { NewsPanel } from '@/components/trading/NewsPanel';
 import Link from 'next/link';
+import { TradingNav } from '@/components/trading/TradingNav';
 import type { Signal } from '@/lib/analysis';
 
 export const dynamic = 'force-dynamic';
@@ -53,9 +54,12 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Stock Trading Analysis</h1>
-          <p className="text-gray-400 text-sm mt-1">Daily close analysis · Large-cap price action strategy</p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Stock Trading Analysis</h1>
+            <p className="text-gray-400 text-sm mt-1">Daily close analysis · Large-cap price action strategy</p>
+          </div>
+          <TradingNav active="/dashboard" />
         </div>
 
         {!hasKey && (

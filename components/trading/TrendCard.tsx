@@ -9,7 +9,7 @@ interface Props {
   rec: Recommendation;
   dipAnalysis: DipAnalysis;
   longTermTrend: { label: string; color: string; bg: string; border: string };
-  fundamentalHealth: { label: 'Strong' | 'Moderate' | 'Weak' | 'Unknown'; color: string; score: number };
+  fundamentalHealth: { label: 'Strong' | 'Moderate' | 'Weak' | 'Unknown'; color: string; score: number; max: number; breakdown: { label: string; pass: boolean | null }[] };
   stockNote: string | null;
   category: StockCategory | null;
   categoryMeta: CategoryMeta | null;
@@ -129,8 +129,25 @@ export function TrendCard({
               : `$${rec.price.toFixed(2)}`}
           </span>
           {fundamentalHealth.label !== 'Unknown' && (
-            <span className={`text-xs font-medium ${fundamentalHealth.color}`}>
-              {fundamentalHealth.label} Fundamentals
+            <span className={`inline-flex items-center text-xs font-medium ${fundamentalHealth.color}`}>
+              {fundamentalHealth.label} Fundamentals ({fundamentalHealth.score}/{fundamentalHealth.max})
+              <InfoTooltip title="Fundamental Health Score" side="top" width="w-72">
+                <p className="mb-1.5">
+                  Score <span className="font-semibold text-white">{fundamentalHealth.score}/{fundamentalHealth.max}</span> based on {fundamentalHealth.max} criteria:
+                </p>
+                <ul className="space-y-1">
+                  {fundamentalHealth.breakdown.map((c) => (
+                    <li key={c.label} className="flex items-start gap-1.5">
+                      <span className={`mt-0.5 shrink-0 ${c.pass === true ? 'text-emerald-400' : c.pass === false ? 'text-red-400' : 'text-gray-600'}`}>
+                        {c.pass === true ? '✓' : c.pass === false ? '✗' : '—'}
+                      </span>
+                      <span className={c.pass === null ? 'text-gray-600' : 'text-gray-300'}>{c.label}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 text-gray-500 text-xs">≥3 Strong · 2 Moderate · &lt;2 Weak</p>
+                <p className="mt-1 text-gray-600 text-xs">📚 W. Buffett (Annual Letters) · B. Graham, <em>The Intelligent Investor</em> (1949)</p>
+              </InfoTooltip>
             </span>
           )}
         </div>
@@ -162,7 +179,18 @@ export function TrendCard({
       {/* Metrics Row */}
       <div className="flex items-center gap-4 text-sm flex-wrap">
         <div>
-          <span className="text-gray-500 text-xs mr-1">RSI</span>
+          <span className="text-gray-500 text-xs inline-flex items-center">
+            RSI
+            <InfoTooltip title="RSI — Relative Strength Index (14)" side="top">
+              <p>Momentum oscillator — ranges 0 to 100.</p>
+              <ul className="mt-1 space-y-0.5">
+                <li><span className="text-emerald-400 font-semibold">&lt; 35</span> — Oversold: potential bounce zone</li>
+                <li><span className="text-gray-300 font-semibold">35–70</span> — Neutral: healthy trend range</li>
+                <li><span className="text-red-400 font-semibold">&gt; 70</span> — Overbought: pullback risk</li>
+              </ul>
+              <p className="mt-1 text-gray-600 text-xs">📚 J.W. Wilder Jr., <em>New Concepts in Technical Trading Systems</em> (1978)</p>
+            </InfoTooltip>
+          </span>{' '}
           <RsiDisplay rsi={rec.rsi} />
         </div>
         <div>
@@ -198,7 +226,19 @@ export function TrendCard({
           </span>
         </div>
         <div>
-          <span className="text-gray-500 text-xs mr-1">ATR%</span>
+          <span className="text-gray-500 text-xs inline-flex items-center">
+            ATR%
+            <InfoTooltip title="ATR% — Average True Range as % of Price (14)" side="top">
+              <p>Measures daily volatility as a % of the stock price. Higher = bigger daily moves.</p>
+              <ul className="mt-1 space-y-0.5">
+                <li><span className="text-emerald-400 font-semibold">&gt; 2%</span> — High volatility, good swing potential</li>
+                <li><span className="text-amber-400 font-semibold">1–2%</span> — Moderate — workable swings</li>
+                <li><span className="text-red-400 font-semibold">&lt; 1%</span> — Low volatility, smaller moves</li>
+              </ul>
+              <p className="mt-1 text-gray-400 text-xs">Used to size stops: stop = entry − 1.5× ATR.</p>
+              <p className="mt-1 text-gray-600 text-xs">📚 J.W. Wilder Jr., <em>New Concepts in Technical Trading Systems</em> (1978)</p>
+            </InfoTooltip>
+          </span>{' '}
           <span className="text-gray-300">{rec.atrPct.toFixed(1)}%</span>
         </div>
         <div>
