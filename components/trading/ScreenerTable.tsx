@@ -207,11 +207,11 @@ export function ScreenerTable({ entries }: { entries: ScreenerEntry[] }) {
           No results match the current filters.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-800">
+        <div className="overflow-auto max-h-[75vh] rounded-xl border border-gray-800">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-800 bg-gray-900/80">
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 z-20 bg-gray-900">Symbol</th>
+            <thead className="sticky top-0 z-30">
+              <tr className="border-b border-gray-800 bg-gray-900">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 z-40 bg-gray-900">Symbol</th>
                 <SortTh
                   k="signal" current={sortKey} dir={sortDir} onClick={toggleSort}
                   label={<>Signal<InfoTooltip title="Signal Types" width="w-80" side="bottom">
@@ -434,13 +434,13 @@ function EmaCell({ value, price, purple = false }: { value: number; price: numbe
 import type { ReactNode } from 'react';
 
 function Th({ label }: { label: string }) {
-  return <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{label}</th>;
+  return <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-900">{label}</th>;
 }
 
 /** Header cell with an inline InfoTooltip icon (non-sortable) */
 function ThInfo({ label, tooltip }: { label: string; tooltip: ReactNode }) {
   return (
-    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-900">
       <span className="inline-flex items-center gap-0">{label}{tooltip}</span>
     </th>
   );
@@ -454,7 +454,7 @@ function SortTh({ label, k, current, dir, onClick }: {
     // Make the <th> itself the sort click target — avoids nesting <button> inside <button>
     // InfoTooltip calls e.stopPropagation() so its ⓘ click won't trigger sorting
     <th
-      className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider select-none whitespace-nowrap cursor-pointer hover:text-gray-200 transition ${active ? 'text-blue-400' : 'text-gray-500'}`}
+      className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider select-none whitespace-nowrap cursor-pointer hover:text-gray-200 transition bg-gray-900 ${active ? 'text-blue-400' : 'text-gray-500'}`}
       onClick={() => onClick(k)}
     >
       <span className="inline-flex items-center gap-0">
