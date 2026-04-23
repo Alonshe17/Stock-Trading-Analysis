@@ -128,9 +128,11 @@ export function TrendCard({
               ? `${rec.price.toFixed(2)} ${rec.currency}`
               : `$${rec.price.toFixed(2)}`}
           </span>
-          <span className={`text-xs font-medium ${fundamentalHealth.color}`}>
-            {fundamentalHealth.label} Fundamentals
-          </span>
+          {fundamentalHealth.label !== 'Unknown' && (
+            <span className={`text-xs font-medium ${fundamentalHealth.color}`}>
+              {fundamentalHealth.label} Fundamentals
+            </span>
+          )}
         </div>
       </div>
 

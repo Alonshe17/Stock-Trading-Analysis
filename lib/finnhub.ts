@@ -216,88 +216,99 @@ export async function getQuoteFundamentals(symbol: string): Promise<QuoteFundame
 
 export type Financials = {
   // Valuation
-  peRatio: number | null;
-  forwardPE: number | null;
-  pbRatio: number | null;
-  eps: number | null;
-  // Profitability
-  revenue: number | null;        // TTM, millions USD
-  revenueGrowth: number | null;  // YoY %
-  grossMargin: number | null;    // %
-  operatingMargin: number | null;// %
-  profitMargin: number | null;   // %
-  returnOnEquity: number | null; // %
-  returnOnAssets: number | null; // %
-  // Cash Flow
-  operatingCashFlow: number | null; // millions USD
-  freeCashFlow: number | null;      // millions USD
-  // Balance Sheet
-  totalCash: number | null;    // millions USD
-  totalDebt: number | null;    // millions USD
-  debtToEquity: number | null; // ratio (%)
-  // Analyst
-  targetPrice: number | null;
-  analystCount: number | null;
-  recommendation: string | null; // "Buy", "Hold", etc.
-  // Dividend
-  dividendYield: number | null; // %
+  peTTM: number | null;
+  pfcfTTM: number | null;         // Price / Free Cash Flow
+  evRevenueTTM: number | null;    // EV / Revenue
+  eps: number | null;             // EPS TTM
+  dividendYield: number | null;   // %
+  // Profitability (all TTM %)
+  grossMargin: number | null;
+  operatingMargin: number | null;
+  netMargin: number | null;
+  roeTTM: number | null;
+  roaTTM: number | null;
+  // Growth
+  revenueGrowthYoy: number | null; // TTM YoY %
+  revenueGrowth3Y: number | null;  // 3Y CAGR %
+  revenueGrowth5Y: number | null;  // 5Y CAGR %
+  // Leverage
+  debtToEquity: number | null;     // total D/E ratio
+  ltDebtToEquity: number | null;   // long-term D/E
+  currentRatio: number | null;
+  // Cash flow
+  cashFlowPerShare: number | null;
+  // Analyst consensus from Finnhub recommendations
+  analystBuy: number;
+  analystHold: number;
+  analystSell: number;
+  recommendation: string | null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rawNum(obj: Record<string, any>, key: string): number | null {
-  const v = obj?.[key]?.raw;
-  return typeof v === 'number' ? v : null;
+function metricNum(m: Record<string, unknown>, key: string): number | null {
+  const v = m[key];
+  return typeof v === 'number' && isFinite(v) ? v : null;
 }
 
 export async function getFinancials(symbol: string): Promise<Financials | null> {
-  const yfSymbol = toYahooSymbol(symbol);
-  const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${yfSymbol}?modules=financialData,defaultKeyStatistics,summaryDetail`;
+  const key = getFinnhubKey();
+  if (!key) return null;
+
   try {
-    const res = await fetch(url, { headers: YF_HEADERS, next: { revalidate: 3600 } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const result = data?.quoteSummary?.result?.[0];
-    if (!result) return null;
+    // Fetch metrics + analyst recommendations in parallel
+    const [metricRes, recRes] = await Promise.all([
+      fetch(`${FINNHUB_BASE}/stock/metric?symbol=${symbol}&metric=all&token=${key}`, { next: { revalidate: 3600 } }),
+      fetch(`${FINNHUB_BASE}/stock/recommendation?symbol=${symbol}&token=${key}`, { next: { revalidate: 3600 } }),
+    ]);
 
-    const fd = result.financialData ?? {};
-    const ks = result.defaultKeyStatistics ?? {};
-    const sd = result.summaryDetail ?? {};
+    if (!metricRes.ok) return null;
+    const metricData = await metricRes.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const m: Record<string, any> = metricData?.metric ?? {};
 
-    // Map recommendation mean to label
-    const recMean = rawNum(fd, 'recommendationMean');
-    let recommendation: string | null = null;
-    if (recMean !== null) {
-      if (recMean <= 1.5) recommendation = 'Strong Buy';
-      else if (recMean <= 2.5) recommendation = 'Buy';
-      else if (recMean <= 3.5) recommendation = 'Hold';
-      else if (recMean <= 4.5) recommendation = 'Underperform';
-      else recommendation = 'Sell';
+    // Analyst recommendations — use the most recent period
+    let analystBuy = 0, analystHold = 0, analystSell = 0, recommendation: string | null = null;
+    if (recRes.ok) {
+      const recData = await recRes.json();
+      if (Array.isArray(recData) && recData.length > 0) {
+        const latest = recData[0];
+        analystBuy  = (latest.strongBuy ?? 0) + (latest.buy ?? 0);
+        analystHold = latest.hold ?? 0;
+        analystSell = (latest.sell ?? 0) + (latest.strongSell ?? 0);
+        const total = analystBuy + analystHold + analystSell;
+        if (total > 0) {
+          const buyPct = analystBuy / total;
+          const sellPct = analystSell / total;
+          if (buyPct >= 0.6)       recommendation = 'Strong Buy';
+          else if (buyPct >= 0.4)  recommendation = 'Buy';
+          else if (sellPct >= 0.4) recommendation = 'Sell';
+          else                     recommendation = 'Hold';
+        }
+      }
     }
 
-    const toM = (v: number | null) => (v !== null ? v / 1_000_000 : null);
-    const toPct = (v: number | null) => (v !== null ? v * 100 : null);
-
     return {
-      peRatio: rawNum(sd, 'trailingPE'),
-      forwardPE: rawNum(ks, 'forwardPE'),
-      pbRatio: rawNum(ks, 'priceToBook'),
-      eps: rawNum(ks, 'trailingEps'),
-      revenue: toM(rawNum(fd, 'totalRevenue')),
-      revenueGrowth: toPct(rawNum(fd, 'revenueGrowth')),
-      grossMargin: toPct(rawNum(fd, 'grossMargins')),
-      operatingMargin: toPct(rawNum(fd, 'operatingMargins')),
-      profitMargin: toPct(rawNum(fd, 'profitMargins')),
-      returnOnEquity: toPct(rawNum(fd, 'returnOnEquity')),
-      returnOnAssets: toPct(rawNum(fd, 'returnOnAssets')),
-      operatingCashFlow: toM(rawNum(fd, 'operatingCashflow')),
-      freeCashFlow: toM(rawNum(fd, 'freeCashflow')),
-      totalCash: toM(rawNum(fd, 'totalCash')),
-      totalDebt: toM(rawNum(fd, 'totalDebt')),
-      debtToEquity: rawNum(fd, 'debtToEquity'),
-      targetPrice: rawNum(fd, 'targetMeanPrice'),
-      analystCount: rawNum(fd, 'numberOfAnalystOpinions'),
+      peTTM:            metricNum(m, 'peTTM'),
+      pfcfTTM:          metricNum(m, 'pfcfShareTTM'),
+      evRevenueTTM:     metricNum(m, 'evRevenueTTM'),
+      eps:              metricNum(m, 'epsBasicExclExtraItemsTTM'),
+      dividendYield:    metricNum(m, 'dividendYieldIndicatedAnnual'),
+      grossMargin:      metricNum(m, 'grossMarginTTM'),
+      operatingMargin:  metricNum(m, 'operatingMarginTTM'),
+      netMargin:        metricNum(m, 'netProfitMarginTTM'),
+      roeTTM:           metricNum(m, 'roeTTM'),
+      roaTTM:           metricNum(m, 'roaTTM'),
+      revenueGrowthYoy: metricNum(m, 'revenueGrowthTTMYoy'),
+      revenueGrowth3Y:  metricNum(m, 'revenueGrowth3Y'),
+      revenueGrowth5Y:  metricNum(m, 'revenueGrowth5Y'),
+      debtToEquity:     metricNum(m, 'totalDebt/totalEquityAnnual'),
+      ltDebtToEquity:   metricNum(m, 'longTermDebt/equityAnnual'),
+      currentRatio:     metricNum(m, 'currentRatioAnnual'),
+      cashFlowPerShare: metricNum(m, 'cashFlowPerShareTTM'),
+      analystBuy,
+      analystHold,
+      analystSell,
       recommendation,
-      dividendYield: toPct(rawNum(sd, 'dividendYield')),
     };
   } catch {
     return null;
