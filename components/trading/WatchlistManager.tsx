@@ -340,14 +340,14 @@ function StockCardEditable({
           <Stat label="Div Yld" value={data.dividend > 0 ? `${data.dividend.toFixed(2)}%` : '—'}      color="text-amber-400" />
         </div>
 
-        {/* Fundamental health + analyst rating */}
+        {/* Fundamental health + analyst rating — stop propagation so taps don't navigate */}
         {(() => {
           const health = fundamentalHealth(data);
           const totalAnalysts = (data.analystBuy ?? 0) + (data.analystHold ?? 0) + (data.analystSell ?? 0);
           const ratingCls = data.analystRating ? (ANALYST_COLORS[data.analystRating] ?? 'bg-gray-800 text-gray-400 border-gray-700') : null;
           if (!health && !ratingCls) return null;
           return (
-            <div className="flex items-center gap-2 flex-wrap mb-2">
+            <div className="flex items-center gap-2 flex-wrap mb-2" onClick={(e) => e.stopPropagation()}>
               {health && (
                 <span className={`text-xs font-medium ${health.color}`}>{health.label}</span>
               )}
@@ -363,8 +363,11 @@ function StockCardEditable({
           );
         })()}
 
-        {/* TA stats */}
-        <div className="grid grid-cols-3 gap-2 text-xs border-t border-gray-800 pt-2">
+        {/* TA stats — stopPropagation prevents tooltip taps from triggering the Link */}
+        <div
+          className="grid grid-cols-3 gap-2 text-xs border-t border-gray-800 pt-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Stat
             label="RSI"
             value={data.rsi.toFixed(1)}
