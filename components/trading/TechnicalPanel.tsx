@@ -23,6 +23,7 @@ export function TechnicalPanel({ a }: { a: AnalysisResult }) {
                   <li><span className="text-red-400 font-semibold">Above 70</span> — Overbought. Momentum may be fading.</li>
                 </ul>
                 <p className="mt-1.5 text-gray-500">The &quot;14&quot; means it uses the last 14 candles (days) in its calculation.</p>
+                <p className="mt-1.5 text-gray-600 text-xs">📚 J.W. Wilder Jr., <em>New Concepts in Technical Trading Systems</em> (1978)</p>
               </InfoTooltip>
             </span>
             <span className={a.rsi < 35 ? 'text-emerald-400 font-semibold' : a.rsi > 70 ? 'text-red-400 font-semibold' : 'text-gray-200'}>{a.rsi.toFixed(1)}</span>
@@ -48,6 +49,7 @@ export function TechnicalPanel({ a }: { a: AnalysisResult }) {
                 <li><span className="text-blue-300 font-semibold">EMA 200</span> — Long-term trend. Most watched by institutions. Price above EMA 200 = bull market for that stock.</li>
               </ul>
               <p className="mt-1.5"><span className="text-emerald-400 font-semibold">Ideal alignment:</span> Price &gt; EMA 50 &gt; EMA 150 &gt; EMA 200 (all stacked = strong uptrend).</p>
+              <p className="mt-1.5 text-gray-600 text-xs">📚 G. Appel, <em>Technical Analysis — Power Tools for Active Investors</em> (2005)</p>
             </InfoTooltip>
           </div>
           <div className="grid grid-cols-3 gap-2 text-xs">
@@ -69,6 +71,7 @@ export function TechnicalPanel({ a }: { a: AnalysisResult }) {
                 <li><span className="text-amber-400 font-semibold">Histogram &gt; 0 and rising</span> — Momentum accelerating upward.</li>
               </ul>
               <p className="mt-1.5 text-gray-500">Format shown: MACD Line / Signal Line</p>
+              <p className="mt-1.5 text-gray-600 text-xs">📚 G. Appel, <em>The Moving Average Convergence-Divergence Method</em> (1979)</p>
             </InfoTooltip>
           </span>
           <div className="flex items-center gap-2">
@@ -89,6 +92,7 @@ export function TechnicalPanel({ a }: { a: AnalysisResult }) {
                 <li><span className="text-blue-400 font-semibold">Squeeze (bands very tight)</span> — Low volatility period. A big breakout move is often coming.</li>
                 <li><span className="text-purple-400 font-semibold">Expansion (bands widening)</span> — A strong trend is underway.</li>
               </ul>
+              <p className="mt-1.5 text-gray-600 text-xs">📚 J. Bollinger, <em>Bollinger on Bollinger Bands</em> (2001)</p>
             </InfoTooltip>
           </div>
           <div className="flex gap-4 text-xs">
@@ -110,6 +114,7 @@ export function TechnicalPanel({ a }: { a: AnalysisResult }) {
                 <li><span className="text-emerald-400 font-semibold">ATR%</span> — ATR as a % of price. Useful for comparing stocks at different price levels. ATR% &gt; 1.5% is ideal for swing trading.</li>
               </ul>
               <p className="mt-1.5 text-gray-500">Used to calculate stop-loss distance and position size.</p>
+              <p className="mt-1.5 text-gray-600 text-xs">📚 J.W. Wilder Jr., <em>New Concepts in Technical Trading Systems</em> (1978)</p>
             </InfoTooltip>
           </span>
           <span className="text-gray-200">${a.atr.toFixed(2)}</span>
@@ -152,6 +157,7 @@ export function TechnicalPanel({ a }: { a: AnalysisResult }) {
                   <li><span className="text-amber-400 font-semibold">3–4</span> — Watch list. Not quite ready.</li>
                   <li><span className="text-red-400 font-semibold">0–2</span> — Avoid. Trend structure is broken.</li>
                 </ul>
+                <p className="mt-1.5 text-gray-600 text-xs">📚 M. Minervini, <em>Trade Like a Stock Market Wizard</em> (2013)</p>
               </InfoTooltip>
             </span>
             <span className={a.minerviniScore >= 5 ? 'text-emerald-400 font-semibold' : a.minerviniScore >= 3 ? 'text-amber-400' : 'text-red-400'}>{a.minerviniScore}/6</span>

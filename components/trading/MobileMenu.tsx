@@ -4,12 +4,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 const NAV_LINKS = [
-  { href: '/dashboard',       label: 'Dashboard',  color: 'text-gray-200' },
-  { href: '/trends',          label: 'Trends',     color: 'text-amber-400' },
-  { href: '/recommendations', label: 'Picks',      color: 'text-gray-200' },
-  { href: '/screener',        label: 'Screener',   color: 'text-gray-200' },
-  { href: '/watchlist',       label: 'Watchlist',  color: 'text-gray-200' },
-  { href: '/alerts',          label: 'Alerts',     color: 'text-gray-200' },
+  { href: '/dashboard',       label: 'Dashboard',    color: 'text-gray-200' },
+  { href: '/trends',          label: 'Trends',       color: 'text-amber-400' },
+  { href: '/recommendations', label: 'Picks',        color: 'text-gray-200' },
+  { href: '/screener',        label: 'Screener',     color: 'text-gray-200' },
+  { href: '/watchlist',       label: 'Watchlist',    color: 'text-gray-200' },
+  { href: '/alerts',          label: 'Alerts',       color: 'text-gray-200' },
+  { href: '/methodology',     label: 'Methodology',  color: 'text-gray-500' },
 ];
 
 export function MobileMenu() {

@@ -47,6 +47,7 @@ export function SwingSetup({ a, portfolioSize = 10000 }: { a: AnalysisResult; po
                 <li><span className="text-amber-400 font-semibold">1–2:1</span> — Marginal. High conviction only.</li>
                 <li><span className="text-red-400 font-semibold">&lt; 1:1</span> — Poor. Skip the trade.</li>
               </ul>
+              <p className="mt-1 text-gray-600 text-xs">📚 Van K. Tharp, <em>Trade Your Way to Financial Freedom</em> (1998)</p>
             </InfoTooltip></>}
             value={a.rrRatio ? `1 : ${a.rrRatio.toFixed(1)}` : 'N/A'}
             highlight={!!a.rrRatio && a.rrRatio >= 2}
@@ -59,6 +60,7 @@ export function SwingSetup({ a, portfolioSize = 10000 }: { a: AnalysisResult; po
                 <li><span className="text-white font-semibold">Inside Bar</span> — Today&apos;s high &lt; yesterday&apos;s high AND today&apos;s low &gt; yesterday&apos;s low. Consolidation — breakout above the high signals continuation.</li>
                 <li><span className="text-white font-semibold">Breakout Candle</span> — Large body (&gt;1.5× ATR), closes near its high, often on rising volume. Signals strong directional momentum.</li>
               </ul>
+              <p className="mt-1 text-gray-600 text-xs">📚 S. Nison, <em>Japanese Candlestick Charting Techniques</em> (1991)</p>
             </InfoTooltip></>}
             value={a.pattern ?? 'None'}
           />
