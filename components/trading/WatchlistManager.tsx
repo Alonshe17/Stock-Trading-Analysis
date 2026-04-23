@@ -7,6 +7,7 @@ import { SignalBadge } from './SignalBadge';
 import { EarningsWarning } from './EarningsWarning';
 import { PriceAlertBell } from './PriceAlertBell';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
+import { AddToWatchlistButton } from '@/components/trading/AddToWatchlistButton';
 import type { AnalysisResult } from '@/lib/analysis';
 import type { WatchlistItem } from '@/lib/watchlist';
 
@@ -296,78 +297,75 @@ function StockCardEditable({
         </div>
       </div>
 
-      <Link href={`/stock/${data.symbol}`} className="block">
-        <div className="flex items-start justify-between gap-2 mb-3 pr-12">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-lg font-bold text-white">{data.symbol}</span>
-              {item.type === 'etf' && <span className="text-xs text-gray-500 border border-gray-700 rounded px-1.5 py-0.5">ETF</span>}
-              {item.warning === 'small-cap' && <span className="text-xs text-amber-500 border border-amber-700/50 rounded px-1.5 py-0.5">Small-Cap ⚠</span>}
-            </div>
-            <div className="text-sm text-gray-400 mt-0.5">{item.name || data.symbol}</div>
+      {/* Header — no Link wrapper so tooltips never accidentally navigate */}
+      <div className="flex items-start justify-between gap-2 mb-3 pr-12">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-lg font-bold text-white">{data.symbol}</span>
+            {item.type === 'etf' && <span className="text-xs text-gray-500 border border-gray-700 rounded px-1.5 py-0.5">ETF</span>}
+            {item.warning === 'small-cap' && <span className="text-xs text-amber-500 border border-amber-700/50 rounded px-1.5 py-0.5">Small-Cap ⚠</span>}
           </div>
-          <SignalBadge signal={data.signal} />
+          <div className="text-sm text-gray-400 mt-0.5">{item.name || data.symbol}</div>
         </div>
+        <SignalBadge signal={data.signal} />
+      </div>
 
-        <div className="flex items-baseline gap-2 mb-3">
-          <span className="text-2xl font-semibold text-white">${data.price.toFixed(2)}</span>
-          <span className={`text-sm font-medium ${changePos ? 'text-emerald-400' : 'text-red-400'}`}>
-            {changePos ? '+' : ''}{data.change.toFixed(2)}%
-          </span>
-        </div>
+      <div className="flex items-baseline gap-2 mb-3">
+        <span className="text-2xl font-semibold text-white">${data.price.toFixed(2)}</span>
+        <span className={`text-sm font-medium ${changePos ? 'text-emerald-400' : 'text-red-400'}`}>
+          {changePos ? '+' : ''}{data.change.toFixed(2)}%
+        </span>
+      </div>
 
-        {data.earningsDate && (
-          <div className="mb-3"><EarningsWarning date={data.earningsDate} /></div>
-        )}
+      {data.earningsDate && (
+        <div className="mb-3"><EarningsWarning date={data.earningsDate} /></div>
+      )}
 
-        {/* Daily OHLC */}
-        <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-xs mb-2">
-          <Stat label="Open"  value={`$${data.open > 0 ? data.open.toFixed(2) : '—'}`}  color="text-gray-300" />
-          <Stat label="High"  value={`$${data.high > 0 ? data.high.toFixed(2) : '—'}`}  color="text-emerald-400" />
-          <Stat label="Low"   value={`$${data.low > 0 ? data.low.toFixed(2) : '—'}`}    color="text-red-400" />
-        </div>
+      {/* Daily OHLC */}
+      <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-xs mb-2">
+        <Stat label="Open"  value={`$${data.open > 0 ? data.open.toFixed(2) : '—'}`}  color="text-gray-300" />
+        <Stat label="High"  value={`$${data.high > 0 ? data.high.toFixed(2) : '—'}`}  color="text-emerald-400" />
+        <Stat label="Low"   value={`$${data.low > 0 ? data.low.toFixed(2) : '—'}`}    color="text-red-400" />
+      </div>
 
-        {/* 52-week range */}
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-2">
-          <Stat label="52wk High" value={`$${data.week52High > 0 ? data.week52High.toFixed(2) : '—'}`} color="text-emerald-400" />
-          <Stat label="52wk Low"  value={`$${data.week52Low > 0 ? data.week52Low.toFixed(2) : '—'}`}  color="text-red-400" />
-        </div>
+      {/* 52-week range */}
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-2">
+        <Stat label="52wk High" value={`$${data.week52High > 0 ? data.week52High.toFixed(2) : '—'}`} color="text-emerald-400" />
+        <Stat label="52wk Low"  value={`$${data.week52Low > 0 ? data.week52Low.toFixed(2) : '—'}`}  color="text-red-400" />
+      </div>
 
-        {/* Fundamentals */}
-        <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-xs mb-2">
-          <Stat label="P/E"     value={data.peRatio > 0 ? data.peRatio.toFixed(1) : '—'}              color="text-gray-300" />
-          <Stat label="Mkt Cap" value={data.marketCap > 0 ? formatMktCap(data.marketCap) : '—'}       color="text-gray-300" />
-          <Stat label="Div Yld" value={data.dividend > 0 ? `${data.dividend.toFixed(2)}%` : '—'}      color="text-amber-400" />
-        </div>
+      {/* Fundamentals */}
+      <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-xs mb-2">
+        <Stat label="P/E"     value={data.peRatio > 0 ? data.peRatio.toFixed(1) : '—'}              color="text-gray-300" />
+        <Stat label="Mkt Cap" value={data.marketCap > 0 ? formatMktCap(data.marketCap) : '—'}       color="text-gray-300" />
+        <Stat label="Div Yld" value={data.dividend > 0 ? `${data.dividend.toFixed(2)}%` : '—'}      color="text-amber-400" />
+      </div>
 
-        {/* Fundamental health + analyst rating — stop propagation so taps don't navigate */}
-        {(() => {
-          const health = fundamentalHealth(data);
-          const totalAnalysts = (data.analystBuy ?? 0) + (data.analystHold ?? 0) + (data.analystSell ?? 0);
-          const ratingCls = data.analystRating ? (ANALYST_COLORS[data.analystRating] ?? 'bg-gray-800 text-gray-400 border-gray-700') : null;
-          if (!health && !ratingCls) return null;
-          return (
-            <div className="flex items-center gap-2 flex-wrap mb-2" onClick={(e) => e.stopPropagation()}>
-              {health && (
-                <span className={`text-xs font-medium ${health.color}`}>{health.label}</span>
-              )}
-              {ratingCls && data.analystRating && (
-                <span className={`text-xs border rounded px-1.5 py-0.5 font-medium ${ratingCls}`}>
-                  {data.analystRating}
-                </span>
-              )}
-              {totalAnalysts > 0 && (
-                <span className="text-xs text-gray-600">{totalAnalysts} analyst{totalAnalysts !== 1 ? 's' : ''}</span>
-              )}
-            </div>
-          );
-        })()}
+      {/* Fundamental health + analyst rating */}
+      {(() => {
+        const health = fundamentalHealth(data);
+        const totalAnalysts = (data.analystBuy ?? 0) + (data.analystHold ?? 0) + (data.analystSell ?? 0);
+        const ratingCls = data.analystRating ? (ANALYST_COLORS[data.analystRating] ?? 'bg-gray-800 text-gray-400 border-gray-700') : null;
+        if (!health && !ratingCls) return null;
+        return (
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            {health && (
+              <span className={`text-xs font-medium ${health.color}`}>{health.label}</span>
+            )}
+            {ratingCls && data.analystRating && (
+              <span className={`text-xs border rounded px-1.5 py-0.5 font-medium ${ratingCls}`}>
+                {data.analystRating}
+              </span>
+            )}
+            {totalAnalysts > 0 && (
+              <span className="text-xs text-gray-600">{totalAnalysts} analyst{totalAnalysts !== 1 ? 's' : ''}</span>
+            )}
+          </div>
+        );
+      })()}
 
-        {/* TA stats — stopPropagation prevents tooltip taps from triggering the Link */}
-        <div
-          className="grid grid-cols-3 gap-2 text-xs border-t border-gray-800 pt-2"
-          onClick={(e) => e.stopPropagation()}
-        >
+        {/* TA stats */}
+        <div className="grid grid-cols-3 gap-2 text-xs border-t border-gray-800 pt-2">
           <Stat
             label="RSI"
             value={data.rsi.toFixed(1)}
@@ -452,7 +450,17 @@ function StockCardEditable({
             </div>
           )}
         </div>
-      </Link>
+
+      {/* Footer — Full Analysis link, same style as TrendCard */}
+      <div className="pt-3 mt-1 border-t border-gray-800 flex items-center justify-between gap-2">
+        <Link
+          href={`/stock/${data.symbol}`}
+          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+        >
+          Full Analysis →
+        </Link>
+        <AddToWatchlistButton symbol={data.symbol} name={item.name} />
+      </div>
     </div>
   );
 }
