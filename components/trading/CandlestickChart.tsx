@@ -258,35 +258,40 @@ export function CandlestickChart({
 
       chart.timeScale().fitContent();
 
-      // ── Crosshair tooltip ───────────────────────────────────────────────────
+      // ── Shared tooltip builder (desktop hover + mobile tap) ─────────────────
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      chart.subscribeCrosshairMove((param: any) => {
+      const buildTooltip = (param: any, persist = false) => {
         if (!param.time || !param.point) {
-          setTooltip(null);
+          if (!persist) setTooltip(null);
           return;
         }
         const ts = param.time as number;
         const candle = candleMap.get(ts);
-        if (!candle) { setTooltip(null); return; }
+        if (!candle) { if (!persist) setTooltip(null); return; }
 
-        // Try to read close from series data first (most accurate)
         const barData = param.seriesData?.get(candleSeries);
-        const close  = barData?.close  ?? candle.c;
-        const open   = barData?.open   ?? candle.o;
-        const high   = barData?.high   ?? candle.h;
-        const low    = barData?.low    ?? candle.l;
+        const close  = barData?.close ?? candle.c;
+        const open   = barData?.open  ?? candle.o;
+        const high   = barData?.high  ?? candle.h;
+        const low    = barData?.low   ?? candle.l;
 
         setTooltip({
           date:   fmtDate(ts, is15m),
-          open,
-          high,
-          low,
-          close,
+          open, high, low, close,
           volume: candle.v,
           isUp:   close >= open,
           x:      Math.round(param.point.x),
           y:      Math.round(param.point.y),
         });
+      };
+
+      // Desktop: follow crosshair on mouse move
+      chart.subscribeCrosshairMove((param: any) => buildTooltip(param, false));
+
+      // Mobile: show tooltip on tap; tapping blank area hides it
+      chart.subscribeClick((param: any) => {
+        if (!param.time || !param.point) { setTooltip(null); return; }
+        buildTooltip(param, true);
       });
 
       // ── Resize handler ──────────────────────────────────────────────────────
