@@ -24,10 +24,20 @@ const RANGE_MAP: Record<string, string> = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Full date — desktop */
 function fmtDate(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString('en-US', {
     month: 'short', day: '2-digit', year: 'numeric',
   });
+}
+
+/** Short date — mobile (e.g. "Jan 01 '24") */
+function fmtDateShort(ts: number): string {
+  const d = new Date(ts * 1000);
+  const mon = d.toLocaleDateString('en-US', { month: 'short' });
+  const day = String(d.getDate()).padStart(2, '0');
+  const yr  = String(d.getFullYear()).slice(2);
+  return `${mon} ${day} '${yr}`;
 }
 
 function fmtNum(v: number | null | undefined, decimals = 2): string {
@@ -335,16 +345,28 @@ export function HistoricalDataTable({ symbol }: { symbol: string }) {
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-gray-900 z-20 border-b border-gray-800">
                   <tr>
-                    {/* Frozen Date header — sticky left + solid bg so it covers scrolling content */}
-                    <th className="sticky left-0 z-30 bg-gray-900 text-left px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap border-r border-gray-700/60">
+                    {/* Frozen Date header */}
+                    <th className="sticky left-0 z-30 bg-gray-900 text-left px-2 sm:px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap border-r border-gray-700/60">
                       Date
                     </th>
-                    <th className="text-right px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">Open</th>
-                    <th className="text-right px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">High</th>
-                    <th className="text-right px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">Low</th>
-                    <th className="text-right px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">Close</th>
-                    <th className="text-right px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">Adj Close</th>
-                    <th className="text-right px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap">Volume</th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
+                      <span className="sm:hidden">O</span><span className="hidden sm:inline">Open</span>
+                    </th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
+                      <span className="sm:hidden">H</span><span className="hidden sm:inline">High</span>
+                    </th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
+                      <span className="sm:hidden">L</span><span className="hidden sm:inline">Low</span>
+                    </th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
+                      <span className="sm:hidden">C</span><span className="hidden sm:inline">Close</span>
+                    </th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
+                      <span className="sm:hidden">Adj</span><span className="hidden sm:inline">Adj Close</span>
+                    </th>
+                    <th className="text-right px-2 sm:px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap">
+                      <span className="sm:hidden">Vol</span><span className="hidden sm:inline">Volume</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/60">
@@ -352,19 +374,23 @@ export function HistoricalDataTable({ symbol }: { symbol: string }) {
                     if (row.type === 'dividend') {
                       return (
                         <tr key={`div-${row.date}-${idx}`} className="bg-amber-950/20 hover:bg-amber-950/30 transition-colors">
-                          {/* Frozen date cell — solid bg to match row, covers scrolling columns */}
-                          <td className="sticky left-0 z-10 bg-[#1a1000] px-4 py-2 whitespace-nowrap border-r border-gray-700/40">
-                            <div className="flex items-center gap-2">
+                          {/* Frozen date cell */}
+                          <td className="sticky left-0 z-10 bg-[#1a1000] px-2 sm:px-4 py-2 whitespace-nowrap border-r border-gray-700/40">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                                 DIV
                               </span>
-                              <span className="text-gray-300">{fmtDate(row.date)}</span>
+                              <span className="text-gray-300">
+                                <span className="sm:hidden">{fmtDateShort(row.date)}</span>
+                                <span className="hidden sm:inline">{fmtDate(row.date)}</span>
+                              </span>
                             </div>
                           </td>
-                          <td colSpan={5} className="px-3 py-2 text-amber-300 text-center font-medium">
-                            Dividend — ${row.amount?.toFixed(4)} per share
+                          <td colSpan={5} className="px-2 sm:px-3 py-2 text-amber-300 text-center font-medium">
+                            <span className="sm:hidden">${row.amount?.toFixed(3)}/sh</span>
+                            <span className="hidden sm:inline">Dividend — ${row.amount?.toFixed(4)} per share</span>
                           </td>
-                          <td className="px-4 py-2 text-gray-600 text-right">—</td>
+                          <td className="px-2 sm:px-4 py-2 text-gray-600 text-right">—</td>
                         </tr>
                       );
                     }
@@ -373,18 +399,22 @@ export function HistoricalDataTable({ symbol }: { symbol: string }) {
                       return (
                         <tr key={`split-${row.date}-${idx}`} className="bg-purple-950/20 hover:bg-purple-950/30 transition-colors">
                           {/* Frozen date cell */}
-                          <td className="sticky left-0 z-10 bg-[#110a1a] px-4 py-2 whitespace-nowrap border-r border-gray-700/40">
-                            <div className="flex items-center gap-2">
+                          <td className="sticky left-0 z-10 bg-[#110a1a] px-2 sm:px-4 py-2 whitespace-nowrap border-r border-gray-700/40">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/30">
                                 SPLIT
                               </span>
-                              <span className="text-gray-300">{fmtDate(row.date)}</span>
+                              <span className="text-gray-300">
+                                <span className="sm:hidden">{fmtDateShort(row.date)}</span>
+                                <span className="hidden sm:inline">{fmtDate(row.date)}</span>
+                              </span>
                             </div>
                           </td>
-                          <td colSpan={5} className="px-3 py-2 text-purple-300 text-center font-medium">
-                            Stock Split — {row.ratio}
+                          <td colSpan={5} className="px-2 sm:px-3 py-2 text-purple-300 text-center font-medium">
+                            <span className="sm:hidden">{row.ratio}</span>
+                            <span className="hidden sm:inline">Stock Split — {row.ratio}</span>
                           </td>
-                          <td className="px-4 py-2 text-gray-600 text-right">—</td>
+                          <td className="px-2 sm:px-4 py-2 text-gray-600 text-right">—</td>
                         </tr>
                       );
                     }
@@ -393,26 +423,27 @@ export function HistoricalDataTable({ symbol }: { symbol: string }) {
                     const isUp = (row.close ?? 0) >= (row.open ?? 0);
                     return (
                       <tr key={`price-${row.date}-${idx}`} className="hover:bg-gray-800/40 transition-colors group">
-                        {/* Frozen date cell — transitions with the row hover */}
-                        <td className="sticky left-0 z-10 bg-gray-950 group-hover:bg-gray-900 transition-colors px-4 py-2 text-gray-400 whitespace-nowrap font-medium border-r border-gray-700/40">
-                          {fmtDate(row.date)}
+                        {/* Frozen date cell — transitions with row hover */}
+                        <td className="sticky left-0 z-10 bg-gray-950 group-hover:bg-gray-900 transition-colors px-2 sm:px-4 py-1.5 sm:py-2 whitespace-nowrap font-medium border-r border-gray-700/40 text-gray-400">
+                          <span className="sm:hidden">{fmtDateShort(row.date)}</span>
+                          <span className="hidden sm:inline">{fmtDate(row.date)}</span>
                         </td>
-                        <td className="px-3 py-2 text-right text-gray-300 font-mono tabular-nums">
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-right text-gray-300 font-mono tabular-nums">
                           {fmtNum(row.open)}
                         </td>
-                        <td className="px-3 py-2 text-right text-emerald-400 font-mono tabular-nums">
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-right text-emerald-400 font-mono tabular-nums">
                           {fmtNum(row.high)}
                         </td>
-                        <td className="px-3 py-2 text-right text-red-400 font-mono tabular-nums">
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-right text-red-400 font-mono tabular-nums">
                           {fmtNum(row.low)}
                         </td>
-                        <td className={`px-3 py-2 text-right font-mono tabular-nums font-semibold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-right font-mono tabular-nums font-semibold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
                           {fmtNum(row.close)}
                         </td>
-                        <td className="px-3 py-2 text-right text-gray-400 font-mono tabular-nums">
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-right text-gray-400 font-mono tabular-nums">
                           {fmtNum(row.adjClose)}
                         </td>
-                        <td className="px-4 py-2 text-right text-gray-400 font-mono tabular-nums">
+                        <td className="px-2 sm:px-4 py-1.5 sm:py-2 text-right text-gray-400 font-mono tabular-nums">
                           {fmtVol(row.volume)}
                         </td>
                       </tr>
