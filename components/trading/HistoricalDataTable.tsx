@@ -333,9 +333,12 @@ export function HistoricalDataTable({ symbol }: { symbol: string }) {
 
             {!loading && !error && visibleRows.length > 0 && (
               <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-gray-900 z-10 border-b border-gray-800">
+                <thead className="sticky top-0 bg-gray-900 z-20 border-b border-gray-800">
                   <tr>
-                    <th className="text-left px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap">Date</th>
+                    {/* Frozen Date header — sticky left + solid bg so it covers scrolling content */}
+                    <th className="sticky left-0 z-30 bg-gray-900 text-left px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap border-r border-gray-700/60">
+                      Date
+                    </th>
                     <th className="text-right px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">Open</th>
                     <th className="text-right px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">High</th>
                     <th className="text-right px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">Low</th>
@@ -349,7 +352,8 @@ export function HistoricalDataTable({ symbol }: { symbol: string }) {
                     if (row.type === 'dividend') {
                       return (
                         <tr key={`div-${row.date}-${idx}`} className="bg-amber-950/20 hover:bg-amber-950/30 transition-colors">
-                          <td className="px-4 py-2 whitespace-nowrap">
+                          {/* Frozen date cell — solid bg to match row, covers scrolling columns */}
+                          <td className="sticky left-0 z-10 bg-[#1a1000] px-4 py-2 whitespace-nowrap border-r border-gray-700/40">
                             <div className="flex items-center gap-2">
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                                 DIV
@@ -368,7 +372,8 @@ export function HistoricalDataTable({ symbol }: { symbol: string }) {
                     if (row.type === 'split') {
                       return (
                         <tr key={`split-${row.date}-${idx}`} className="bg-purple-950/20 hover:bg-purple-950/30 transition-colors">
-                          <td className="px-4 py-2 whitespace-nowrap">
+                          {/* Frozen date cell */}
+                          <td className="sticky left-0 z-10 bg-[#110a1a] px-4 py-2 whitespace-nowrap border-r border-gray-700/40">
                             <div className="flex items-center gap-2">
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/30">
                                 SPLIT
@@ -388,7 +393,8 @@ export function HistoricalDataTable({ symbol }: { symbol: string }) {
                     const isUp = (row.close ?? 0) >= (row.open ?? 0);
                     return (
                       <tr key={`price-${row.date}-${idx}`} className="hover:bg-gray-800/40 transition-colors group">
-                        <td className="px-4 py-2 text-gray-400 whitespace-nowrap font-medium">
+                        {/* Frozen date cell — transitions with the row hover */}
+                        <td className="sticky left-0 z-10 bg-gray-950 group-hover:bg-gray-900 transition-colors px-4 py-2 text-gray-400 whitespace-nowrap font-medium border-r border-gray-700/40">
                           {fmtDate(row.date)}
                         </td>
                         <td className="px-3 py-2 text-right text-gray-300 font-mono tabular-nums">
