@@ -10,6 +10,7 @@ import { CandlestickChart } from '@/components/trading/CandlestickChart';
 import { StockNewsPanel } from '@/components/trading/StockNewsPanel';
 import { PriceAlertBell } from '@/components/trading/PriceAlertBell';
 import { FundamentalsPanel } from '@/components/trading/FundamentalsPanel';
+import { HistoricalDataTable } from '@/components/trading/HistoricalDataTable';
 import Link from 'next/link';
 import { TradingNav } from '@/components/trading/TradingNav';
 
@@ -124,6 +125,11 @@ export default async function StockPage({ params }: Props) {
             <FundamentalsPanel financials={financials} symbol={a.symbol} />
           </div>
         )}
+
+        {/* Historical Data */}
+        <div className="mt-6">
+          <HistoricalDataTable symbol={a.symbol} />
+        </div>
 
         {/* Strategy note */}
         <div className="mt-6 rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-xs text-gray-500">
