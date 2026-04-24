@@ -76,12 +76,16 @@ function fmtVol(v: number): string {
   return String(v);
 }
 
-// ── Floating OHLCV tooltip ──────────────────────────────────────────────────
-const TOOLTIP_W = 160; // approximate tooltip width in px
-const TOOLTIP_H = 130; // approximate tooltip height in px
-const OFFSET    = 14;  // gap between crosshair and tooltip edge
+// ── OHLCV tooltip — two layouts ─────────────────────────────────────────────
+//   Desktop : small card floating next to the crosshair
+//   Mobile  : slim strip pinned above the chart, never covers candles
 
-function TooltipOverlay({
+const TOOLTIP_W = 160;
+const TOOLTIP_H = 130;
+const OFFSET    = 14;
+
+/** Desktop floating card */
+function FloatingTooltip({
   tooltip,
   containerRef,
 }: {
@@ -90,12 +94,8 @@ function TooltipOverlay({
 }) {
   const w = containerRef.current?.clientWidth  ?? 600;
   const h = containerRef.current?.clientHeight ?? 400;
-
-  // Flip horizontally when crosshair is in the right 40% of the chart
   const flipX = tooltip.x > w * 0.6;
-  // Flip vertically when crosshair is in the bottom 35%
   const flipY = tooltip.y > h * 0.65;
-
   const left = flipX ? tooltip.x - TOOLTIP_W - OFFSET : tooltip.x + OFFSET;
   const top  = flipY ? tooltip.y - TOOLTIP_H - OFFSET : tooltip.y + OFFSET;
 
@@ -109,17 +109,11 @@ function TooltipOverlay({
       </div>
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
         <span className="text-gray-500">Open</span>
-        <span className="text-gray-200 text-right font-mono tabular-nums">
-          {tooltip.open.toFixed(2)}
-        </span>
+        <span className="text-gray-200 text-right font-mono tabular-nums">{tooltip.open.toFixed(2)}</span>
         <span className="text-gray-500">High</span>
-        <span className="text-emerald-400 text-right font-mono tabular-nums">
-          {tooltip.high.toFixed(2)}
-        </span>
+        <span className="text-emerald-400 text-right font-mono tabular-nums">{tooltip.high.toFixed(2)}</span>
         <span className="text-gray-500">Low</span>
-        <span className="text-red-400 text-right font-mono tabular-nums">
-          {tooltip.low.toFixed(2)}
-        </span>
+        <span className="text-red-400 text-right font-mono tabular-nums">{tooltip.low.toFixed(2)}</span>
         <span className="text-gray-500">Close</span>
         <span className={`text-right font-mono tabular-nums font-semibold ${tooltip.isUp ? 'text-emerald-400' : 'text-red-400'}`}>
           {tooltip.close.toFixed(2)}
@@ -127,12 +121,54 @@ function TooltipOverlay({
         {tooltip.volume > 0 && (
           <>
             <span className="text-gray-500">Vol</span>
-            <span className="text-gray-300 text-right font-mono tabular-nums">
-              {fmtVol(tooltip.volume)}
-            </span>
+            <span className="text-gray-300 text-right font-mono tabular-nums">{fmtVol(tooltip.volume)}</span>
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Mobile strip — sits above the chart canvas, never overlaps candles */
+function MobileTooltipBar({
+  tooltip,
+  onClose,
+}: {
+  tooltip: TooltipBar;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-gray-900 border-b border-gray-700 text-[11px] flex-wrap">
+      <span className="text-gray-400 font-medium whitespace-nowrap shrink-0">{tooltip.date}</span>
+      <span className="text-gray-500 whitespace-nowrap">
+        O <span className="text-gray-200 font-mono">{tooltip.open.toFixed(2)}</span>
+      </span>
+      <span className="text-gray-500 whitespace-nowrap">
+        H <span className="text-emerald-400 font-mono">{tooltip.high.toFixed(2)}</span>
+      </span>
+      <span className="text-gray-500 whitespace-nowrap">
+        L <span className="text-red-400 font-mono">{tooltip.low.toFixed(2)}</span>
+      </span>
+      <span className="text-gray-500 whitespace-nowrap">
+        C <span className={`font-mono font-semibold ${tooltip.isUp ? 'text-emerald-400' : 'text-red-400'}`}>
+          {tooltip.close.toFixed(2)}
+        </span>
+      </span>
+      {tooltip.volume > 0 && (
+        <span className="text-gray-500 whitespace-nowrap">
+          Vol <span className="text-gray-300 font-mono">{fmtVol(tooltip.volume)}</span>
+        </span>
+      )}
+      {/* Prominent close button */}
+      <button
+        onClick={onClose}
+        className="ml-auto shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+        aria-label="Close"
+      >
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -164,9 +200,15 @@ export function CandlestickChart({
   defaultRange = '6M',
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded]     = useState(false);
+  const [expanded, setExpanded]       = useState(false);
   const [activeRange, setActiveRange] = useState<Range>(defaultRange);
-  const [tooltip, setTooltip]       = useState<TooltipBar | null>(null);
+  const [tooltip, setTooltip]         = useState<TooltipBar | null>(null);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  // Detect touch device once on mount (avoids SSR mismatch)
+  useEffect(() => {
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
 
   const getChartHeight = () => {
     if (expanded) return window.innerHeight - 56;
@@ -403,13 +445,18 @@ export function CandlestickChart({
           </button>
         </div>
 
-        {/* ── Chart + tooltip wrapper ─────────────────────────────────────────── */}
+        {/* ── Mobile OHLCV strip — above chart, never overlaps candles ──────── */}
+        {isTouchDevice && tooltip && (
+          <MobileTooltipBar tooltip={tooltip} onClose={() => setTooltip(null)} />
+        )}
+
+        {/* ── Chart + floating tooltip (desktop only) ─────────────────────────── */}
         <div className={`relative ${expanded ? 'flex-1' : ''}`}>
           <div ref={containerRef} className="w-full h-full" />
 
-          {/* OHLCV hover tooltip — floats next to the crosshair */}
-          {tooltip && (
-            <TooltipOverlay tooltip={tooltip} containerRef={containerRef} />
+          {/* Desktop floating card next to crosshair */}
+          {!isTouchDevice && tooltip && (
+            <FloatingTooltip tooltip={tooltip} containerRef={containerRef} />
           )}
         </div>
       </div>
