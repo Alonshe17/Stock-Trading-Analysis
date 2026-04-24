@@ -346,27 +346,15 @@ export function HistoricalDataTable({ symbol }: { symbol: string }) {
                 <thead className="sticky top-0 bg-gray-900 z-20 border-b border-gray-800">
                   <tr>
                     {/* Frozen Date header */}
-                    <th className="sticky left-0 z-30 bg-gray-900 text-left px-2 sm:px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap border-r border-gray-700/60">
+                    <th className="sticky left-0 z-30 bg-gray-900 text-left px-2 sm:px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap border-r border-gray-700/60 text-[10px] sm:text-xs">
                       Date
                     </th>
-                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
-                      <span className="sm:hidden">O</span><span className="hidden sm:inline">Open</span>
-                    </th>
-                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
-                      <span className="sm:hidden">H</span><span className="hidden sm:inline">High</span>
-                    </th>
-                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
-                      <span className="sm:hidden">L</span><span className="hidden sm:inline">Low</span>
-                    </th>
-                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
-                      <span className="sm:hidden">C</span><span className="hidden sm:inline">Close</span>
-                    </th>
-                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap">
-                      <span className="sm:hidden">Adj</span><span className="hidden sm:inline">Adj Close</span>
-                    </th>
-                    <th className="text-right px-2 sm:px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap">
-                      <span className="sm:hidden">Vol</span><span className="hidden sm:inline">Volume</span>
-                    </th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap text-[10px] sm:text-xs">Open</th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap text-[10px] sm:text-xs">High</th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap text-[10px] sm:text-xs">Low</th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap text-[10px] sm:text-xs">Close</th>
+                    <th className="text-right px-2 sm:px-3 py-2.5 text-gray-400 font-medium whitespace-nowrap text-[10px] sm:text-xs">Adj Close</th>
+                    <th className="text-right px-2 sm:px-4 py-2.5 text-gray-400 font-medium whitespace-nowrap text-[10px] sm:text-xs">Volume</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/60">
