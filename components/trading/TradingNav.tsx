@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: '/recommendations', label: 'Daily Picks', short: 'Picks'    },
   { href: '/trends',          label: 'Trends',      short: 'Trends'   },
   { href: '/alerts',          label: 'Alerts',      short: 'Alerts'   },
+  { href: '/backtest',        label: 'Backtest',    short: 'BTest'    },
 ];
 
 /**

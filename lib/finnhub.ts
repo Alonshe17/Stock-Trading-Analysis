@@ -11,9 +11,12 @@ function getFinnhubKey(): string | null {
   return process.env.FINNHUB_API_KEY ?? null;
 }
 
-// Yahoo Finance uses dashes instead of dots (BRK.B → BRK-B)
+// Yahoo Finance chart API accepts exchange suffixes with dots (STAN.L, SAP.DE, 7203.T).
+// Only US share-class dots need converting: BRK.B → BRK-B, BF.B → BF-B.
 function toYahooSymbol(symbol: string): string {
-  return symbol.replace('.', '-');
+  if (symbol === 'BRK.B') return 'BRK-B';
+  if (symbol === 'BF.B')  return 'BF-B';
+  return symbol;
 }
 
 export type Candle = {

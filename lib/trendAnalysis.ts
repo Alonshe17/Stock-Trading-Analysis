@@ -366,24 +366,147 @@ export const CATEGORY_META: Record<StockCategory, CategoryMeta> = {
   },
 };
 
-// Stock-specific notes for well-known names
+// Stock-specific notes for well-known names — covers US large-caps, ADRs, and growth names
 export const STOCK_NOTES: Record<string, string> = {
-  UNH: 'Under DOJ investigation for Medicare billing — near-term overhang. But 20-year EPS CAGR >15%, dominant managed care position, and $370B revenue base remain structurally intact.',
-  BA:   'Quality control scandals and MAX door-plug incident created near-term pain. $500B+ backlog, near-duopoly with Airbus, and defense contracts provide long-term floor.',
-  NVDA: 'AI GPU dominance with 80%+ data center share. CUDA ecosystem creates multi-year switching-cost moat. Blackwell GPU demand exceeds supply through 2025.',
-  NKE:  'CEO transition + China headwinds + DTC strategy reset. Global brand moat intact — historic dips have been long-term buying opportunities.',
-  TSLA: 'Brand sentiment pressure from Musk geopolitics. But FSD progress, energy storage growth, and Optimus robot optionality are undervalued in current price.',
-  DIS:  'Streaming turned profitable in 2024. Theme park moat intact. ESPN deal/spinoff is a potential catalyst. Recovering from content cost overspend.',
-  BABA: 'China regulatory overhang weighing on valuation. Trading at 8-10x earnings with cloud growing and buybacks accelerating. Key risk = US-China tensions.',
-  LLY:  'GLP-1 drugs (Zepbound/Mounjaro) manufacturing capacity ramping fast. Obesity drug TAM estimated $150B+ by 2030. Premium valuation justified by pipeline depth.',
-  SMCI: 'Accounting restatement concerns created overhang. AI server demand is real, margins improving. High risk/reward — small position size appropriate.',
-  APLD: 'Pure-play AI data center operator. Revenue growing fast but not yet profitable. Sensitive to power costs and GPU availability — classic high-risk swing trade.',
-  AMZN: 'AWS cloud margins expanding, advertising growing 20%+, AI infrastructure investment substantial. Retail headwinds masked by AWS/ads profitability acceleration.',
-  META: 'Llama open-source AI strategy paying off. Reality Labs losses narrowing. Advertising targeting improved by AI. Demographic risk (young users) is real but overstated.',
-  MSFT: 'Azure AI cloud growing 30%+. Copilot monetization still early innings. OpenAI partnership and enterprise AI distribution are durable competitive advantages.',
-  RIVN: 'Cash burn improving, Volkswagen partnership adds credibility. Amazon delivery van contract provides revenue floor. Long road to profitability but strategic value clear.',
-  COIN: 'Dominant US crypto exchange — highly correlated to Bitcoin price. Fee compression risk from competition. Beneficiary of crypto-friendly regulatory environment.',
+
+  // ── US Large-Cap Tech ──────────────────────────────────────────────────────
+  AAPL:  'Services flywheel (App Store, iCloud, Apple TV+) now >35% of revenue with 75%+ margins. Apple Intelligence AI features are the mid-2025 upgrade cycle catalyst. China exposure (~17% revenue) remains the key geopolitical risk.',
+  MSFT:  'Azure AI cloud growing 30%+. Copilot monetization still early innings. OpenAI partnership and enterprise AI distribution are durable competitive advantages.',
+  NVDA:  'AI GPU dominance with 80%+ data center share. CUDA ecosystem creates multi-year switching-cost moat. Blackwell GPU demand exceeds supply through 2025.',
+  GOOGL: 'Search ad resilience surprises bears. Gemini AI integrated across products. Google Cloud growing 28%+. YouTube Shorts monetization and Waymo commercialization are underappreciated catalysts.',
+  META:  'Llama open-source AI strategy paying off. Reality Labs losses narrowing. Advertising targeting improved by AI. Demographic risk (young users) is real but overstated.',
+  AMZN:  'AWS cloud margins expanding, advertising growing 20%+, AI infrastructure investment substantial. Retail headwinds masked by AWS/ads profitability acceleration.',
+  NFLX:  'Ad-supported tier growing fast. Password-sharing crackdown added 25M+ subscribers. Content spend at scale creates a moat that new entrants cannot easily replicate.',
+  AMD:   'Data center GPU momentum (Instinct MI300X) and x86 CPU gains against Intel. AI training/inference market is the growth vector. CUDA moat remains the key competitive barrier against NVIDIA.',
+  AVGO:  'VMware acquisition transforms it into a diversified software + chip giant. Custom AI chip business (Google TPU, Meta MTIA) is a multi-year tailwind. High leverage from VMware — watch debt paydown pace.',
+  QCOM:  'Smartphone exposure limits near-term growth, but automotive design wins and IoT diversification reduce cyclicality. Arm licensing tension is an ongoing risk.',
+  CRM:   'AI CRM (Einstein/Agentforce) is the near-term growth driver. Slack integration still under-monetized. Margin expansion story compelling if revenue growth sustains above 10%.',
+  ADBE:  'Figma acquisition blocked by regulators — $1B breakup fee received. Firefly generative AI integrated into Creative Cloud. Creator economy growth is a structural tailwind.',
+  ORCL:  'Cloud database migration and AI training partnerships (Microsoft, Google) are transforming the growth profile. Oracle Cloud Infrastructure growing 40%+. Legacy licensing still the majority of revenue.',
+  CRWD:  'Falcon platform consolidation is a secular trend — enterprises reducing vendor count. 2024 global outage caused reputation damage but customer retention remained high. Premium valuation demands continued growth.',
+
+  // ── US Large-Cap Financials ────────────────────────────────────────────────
+  JPM:   'Best-run US bank — fortress balance sheet, diversified revenue across IB, consumer, and asset management. Rising credit card delinquencies are the watch item. Net interest margin pressure if Fed cuts aggressively.',
+  BAC:   'High interest-rate sensitivity gives it more upside than peers in a stable-rate environment. Consumer credit stress and held-to-maturity bond portfolio losses are legacy risks fading over time.',
+  GS:    'Investment banking rebound is the primary catalyst — M&A and IPO markets recovering from the 2022-23 drought. Marcus consumer banking pivot failed; refocused on core institutional strengths.',
+  MS:    'Wealth management transformation (E*TRADE, Eaton Vance) created more stable, fee-based revenue. Investment banking exposure makes results cyclical. Strong brand in global M&A advisory.',
+  V:     'Irreplaceable payments network with 40%+ operating margins and no credit risk. Structural beneficiary of global cash-to-digital transition. Regulatory pressure on interchange fees is the key long-term watch item.',
+  MA:    'Near-identical business model to Visa with slightly more international exposure. Both face regulatory pressure on interchange fees. Strong FCF conversion funds consistent buybacks.',
+  'BRK-B': 'Buffett\'s $150B+ cash hoard signals few attractive opportunities — patient capital waiting for a crisis. Apple (40%+ of portfolio) is a concentration risk. Insurance float strategy and railroad/utility assets remain exceptional.',
+  PYPL:  'Post-peak e-commerce growth challenge. New CEO (Alex Chriss) focused on profitability over growth. Cheap valuation vs. peers but requires strategic re-rating to unlock. Venmo monetization is the sleeper catalyst.',
+  SQ:    'Seller ecosystem (point-of-sale hardware/software) and Cash App (peer-to-peer) are complementary flywheels. Bitcoin exposure adds volatility. Path to consistent profitability is the key question.',
+
+  // ── US Healthcare ─────────────────────────────────────────────────────────
+  UNH:   'Under DOJ investigation for Medicare billing — near-term overhang. But 20-year EPS CAGR >15%, dominant managed care position, and $370B revenue base remain structurally intact.',
+  LLY:   'GLP-1 drugs (Zepbound/Mounjaro) manufacturing capacity ramping fast. Obesity drug TAM estimated $150B+ by 2030. Premium valuation justified by pipeline depth and first-mover manufacturing scale.',
+  JNJ:   'Post-talc liability spinoff (Kenvue) cleaned up the balance sheet. MedTech and Innovative Medicine are high-quality segments. Dividend aristocrat — 60+ consecutive years of increases.',
+  ABBV:  'Humira patent cliff partially offset by Skyrizi/Rinvoq ramp ahead of expectations. Allergan acquisition diversified beyond immunology. One of the highest dividend yields in large-cap pharma.',
+  MRK:   'Keytruda (pembrolizumab) faces patent cliff 2028-2030 — pipeline build-out is existential priority. Daiichi Sankyo ADC partnership and PCSK9 inhibitor in development offer partial mitigation.',
+  NVO:   'Wegovy/Ozempic supply constraints easing. Pipeline competition (Eli Lilly, Roche, Pfizer) is real but NVO\'s clinical data and brand advantage are significant. GLP-1 TAM still in very early innings.',
+  AZN:   'Oncology pipeline (Enhertu, Tagrisso) is best-in-class globally. US pricing pressure from IRA drug negotiations is a watch item. China revenue exposure (~20%) is a near-term geopolitical overhang.',
+  GSK:   'RSV vaccine (Arexvy) and meningitis portfolio are growth drivers. Zantac liability overhang substantially resolved. HIV treatment (Cabenuva) and respiratory pipeline look solid.',
+  SNY:   'Dupixent (dupilumab) franchise expanding into new indications including COPD. mRNA oncology pipeline with BioNTech is underappreciated optionality. Diabetes divestiture cleaned up the portfolio.',
+  NVS:   'Transformed into pure-play innovative medicine after Sandoz spinoff. Cosentyx biosimilar risk in 2026. Leqvio (inclisiran) cholesterol drug is an underappreciated long-term growth driver.',
+  HIMS:  'GLP-1 compounding pharmacy became a massive growth driver in 2024. FDA approval of brand-name drugs vs. compound versions is the key near-term regulatory risk. Telehealth model has strong unit economics.',
+  RXRX:  'AI-powered drug discovery — phenomics data platform with Nvidia partnership is a credibility signal. Long path to revenue — currently Phase 1-2 trials. Cash burn means dilution risk is ongoing.',
+
+  // ── US Consumer ───────────────────────────────────────────────────────────
+  TSLA:  'Brand sentiment pressure from Musk geopolitics. FSD progress, energy storage growth (Megapack), and Optimus robot optionality are undervalued in current price.',
+  WMT:   'Gained significant market share in grocery during inflation. Advertising and marketplace businesses (like Amazon\'s model) are high-margin growth vectors. International (Flipkart, Walmex) underappreciated.',
+  COST:  'Membership model creates ultra-loyal, high-renewal revenue stream. Inflation beneficiary as consumers trade down to value. E-commerce growth lagging peers — a long-term watch item.',
+  NKE:   'CEO transition + China headwinds + DTC strategy reset. Global brand moat intact — historic dips have been long-term buying opportunities for patient investors.',
+  MCD:   'Value menu competition intensifying post-inflation. Franchise model insulates from labor cost inflation. International markets (particularly China) remain meaningful growth engines.',
+  SBUX:  'CEO change (Brian Niccol from Chipotle) catalyzed turnaround hopes. China weakness is the near-term overhang — 6,000+ stores in slowing consumer environment. Loyalty program data is undervalued.',
+  DIS:   'Streaming turned profitable in 2024. Theme park moat intact. ESPN deal/spinoff is a potential catalyst. Recovering from content cost overspend era.',
+  KO:    'Inflation-resistant pricing model with 200+ country distribution moat. Energy drink and sparkling water categories are growth vectors. Long-term risk: GLP-1 drugs reducing sugar consumption.',
+  PG:    'Pricing power proved resilient through 2022-24 inflation cycle. Volume recovery underway as consumers adjust to higher shelf prices. EM exposure (Latin America, Asia) adds forex volatility.',
+
+  // ── US Energy ─────────────────────────────────────────────────────────────
+  XOM:   'Permian Basin scale and Pioneer acquisition cement top-tier shale position. Integration synergies ahead of plan. Capital discipline improved since 2015 — less capex cyclicality.',
+  CVX:   'Hess acquisition adds high-quality Guyana assets. Strong FCF generation, consistent buybacks. Slightly higher international political risk than Exxon. Cheaper valuation vs. peers.',
+  COP:   'Premier US independent oil producer — Permian and Alaska positions are top-tier. Marathon Oil acquisition expands scale. Low-cost producer with sub-$40/bbl breakeven makes it resilient.',
+  SHEL:  'Integrated energy major with strong LNG trading desk. Transitioning portfolio toward lower-carbon while maintaining hydrocarbon returns. Trading at a discount to US peers.',
+  BP:    'Pulling back on renewable energy targets amid shareholder pressure. Upstream oil/gas investments resuming. Activist investor (Elliott) pushing for increased shareholder returns.',
+  TTE:   'Best-positioned European major for energy transition — meaningful offshore wind and solar portfolio alongside LNG leadership. Trades at a discount to US energy peers.',
+
+  // ── US Defense ────────────────────────────────────────────────────────────
+  LMT:   'F-35 program longevity underpins multi-decade revenue visibility. NATO spending increases are a direct tailwind. Supply chain constraints post-Ukraine are easing.',
+  RTX:   'Pratt & Whitney GTF engine powder metal issue (costly inspections) created 2023-24 overhang. Defense portfolio benefits from elevated global threat environment. Backlog at record highs.',
+  NOC:   'B-21 Raider stealth bomber is a multi-decade sole-source program — exceptional revenue visibility. Space and cyber defense segments growing faster than legacy platforms.',
+  GD:    'Gulfstream business jets have a 3-year backlog — wealth effect durability is underappreciated. Stryker/Abrams demand from NATO allies adds to defense segment growth.',
+  RKLB:  'Only pure-play public launch vehicle company. Neutron medium-lift rocket is the next growth lever. Space Systems (satellite components) provides near-term revenue diversification.',
+
+  // ── US Industrials ────────────────────────────────────────────────────────
+  BA:    'Quality control scandals and MAX door-plug incident created near-term pain. $500B+ backlog, near-duopoly with Airbus, and defense contracts provide the long-term floor.',
+  CAT:   'Infrastructure supercycle (IIJA, CHIPS Act, IRA) is a multi-year tailwind for heavy equipment. China construction slowdown and mining capex cyclicality are the key offsets.',
+  HON:   'Portfolio restructuring underway — spinning off Advanced Materials and Automation businesses to unlock value. Defense and process solutions are the higher-quality core segments.',
+
+  // ── US Semiconductors ─────────────────────────────────────────────────────
+  TSM:   'Only manufacturer capable of making leading-edge chips at scale (Apple, NVIDIA, AMD are key customers). Arizona fab diversification reduces, but does not eliminate, Taiwan geopolitical risk.',
+  MU:    'AI memory (HBM3E) is the structural growth driver — each NVIDIA Blackwell GPU requires 6+ HBM stacks. Cyclical nature of DRAM/NAND means timing the entry matters.',
+  ASML:  'Monopoly on EUV lithography — every leading-edge chip requires ASML machines. China export restrictions cut a meaningful revenue segment but order backlog remains >€36B.',
+
+  // ── UK / European ADRs ────────────────────────────────────────────────────
+  HSBC:  'Asia-Pacific revenue (~70% of pretax profit) ties it to the China/HK economic cycle. Strategic pivot to wealth management in Asia. Capital return program (buybacks + dividends) is generous.',
+  UL:    'New CEO (Hein Schumacher) separating Ice Cream (Ben & Jerry\'s, Magnum) to focus on Power Brands. Emerging market pricing power and volume recovery are underappreciated.',
+  RIO:   'World\'s largest iron ore producer — China steel demand is the key swing factor. Copper exposure positions it as a clean energy transition play. Strong FCF and consistent dividend.',
+  BHP:   'Diversified mining giant — iron ore, copper, potash. Copper exposure makes it a clean energy transition proxy (EVs, grid). Anglo American acquisition attempt highlighted M&A ambition.',
+  SAP:   'ERP cloud migration (S/4HANA Cloud) driving strong recurring revenue growth. AI-embedded enterprise software is the next wave. Trades at a premium valuation vs. US software peers.',
+  LVMUY: 'Luxury sector post-Covid demand normalization. China luxury recovery is the key swing factor. Fashion & Leather Goods (Louis Vuitton, Dior) margins are exceptional at scale.',
+  SIEGY: 'Industrial automation and digitalization play. Spinoff of Healthineers and Siemens Energy unlocked significant value. Factory automation demand tied to reshoring trends.',
+  ABB:   'Electrification and automation are secular growth markets. Data center power demand (transformers, switchgear) is an unexpected tailwind. Strong Swiss quality of earnings.',
+  NSRGY: 'Pricing headwinds as volumes decline post-inflation era. Divesting non-core brands to refocus on high-margin products. GLP-1 drugs are a secular headwind to confectionery and snacking.',
+  RHHBY: 'Oncology and diagnostics combination creates a uniquely defensible business. Weight-loss drug pipeline (CT-996) could be a major catalyst. Legacy Avastin/Herceptin biosimilar pressure easing.',
+
+  // ── Japan / Asia Pacific ADRs ─────────────────────────────────────────────
+  TM:    'World\'s largest automaker with undisputed hybrid dominance (Prius, Camry Hybrid). BEV transition slower than peers — risk if EV mandates accelerate. Solid-state battery development is long-term optionality.',
+  SONY:  'PlayStation + entertainment (Sony Pictures, Sony Music) provide diversified revenue beyond gaming. PS5 cycle maturing — PS6 is the next hardware catalyst. Image sensor division (dominant in iPhone cameras) is a hidden gem.',
+  SFTBY: 'Masa Son\'s AI-everything bet. ARM Holdings listing was a major value unlock. Vision Fund losses easing. High leverage and concentration in volatile tech assets creates a high-risk/high-reward profile.',
+  MUFG:  'Japan\'s largest bank — beneficiary of BOJ rate normalization ending decades of zero-rate policy. TSE shareholder return pressure driving aggressive buybacks. Yen strength is the key earnings risk.',
+  BABA:  'China regulatory overhang weighing on valuation. Trading at 8-10x earnings with cloud growing and buybacks accelerating. Key risk = US-China trade and technology tensions.',
+  TCEHY: 'WeChat/WeiXin superapp monetization and gaming recovery post-China regulatory thaw. Hunyuan AI LLM investments are early-stage. US political risk — potential forced divestment concerns persist.',
+  SSNLF: 'Memory + smartphone + display + foundry unique diversification. HBM competition with SK Hynix intensifying. Samsung Foundry is struggling vs. TSMC — a multi-year challenge to fix.',
+  INFY:  'India\'s second-largest IT services firm. AI-led digital transformation programs are driving large deal wins. Attrition normalizing. US visa/immigration policies affect the delivery model.',
+  HDB:   'India\'s largest private bank — riding India\'s formalization of economy and credit expansion. HDFC Ltd. merger integration risk largely resolved. Premium valuation vs. state banks justified by superior asset quality.',
+
+  // ── EV & Clean Energy ─────────────────────────────────────────────────────
+  RIVN:  'Cash burn improving, Volkswagen partnership adds credibility. Amazon delivery van contract provides a revenue floor. Long road to profitability but strategic value as an EV platform is clear.',
+  NIO:   'China\'s premium EV brand. ONVO (lower-cost sub-brand) addresses the mass market. Battery swap network is a genuine differentiator vs. Tesla. Cash burn remains high; ongoing dilution risk.',
+  XPEV:  'MONA and X9 models gaining traction in China. NVIDIA partnership for next-gen ADAS is a positive signal. Government subsidy dependency and intense domestic EV competition are key risks.',
+  ENPH:  'Residential solar market slowdown due to high interest rates and California NEM 3.0 reform. IQ8 microinverter technology remains class-leading. Recovery trajectory tied to Fed rate cuts.',
+  CHPT:  'EV charging network leader facing margin pressure from hardware commoditization. Software/services revenue is higher quality. Federal NEVI infrastructure funding is a multi-year tailwind.',
+
+  // ── Crypto & Digital Assets ───────────────────────────────────────────────
+  COIN:  'Dominant US crypto exchange — revenue highly correlated to Bitcoin price and trading volumes. Fee compression risk from competition. Key beneficiary of a crypto-friendly regulatory environment.',
+  MSTR:  'Michael Saylor\'s Bitcoin acquisition vehicle — holds 200,000+ BTC funded by convertible notes. Acts as leveraged Bitcoin exposure with additional operational risk. Not a substitute for direct BTC.',
+  MARA:  'Pure-play Bitcoin miner with a large Bitcoin treasury strategy. Hash rate growth requires significant capex. High correlation to Bitcoin price — a high-beta proxy for the crypto cycle.',
+  RIOT:  'Bitcoin mining focused on Texas data center operations. Energy cost management is the key margin lever. Second-order Bitcoin play behind MSTR in terms of price sensitivity.',
+
+  // ── AI & Cloud Software ───────────────────────────────────────────────────
+  PLTR:  'US government AI contracts (Maven, Gotham) are high-margin recurring revenue. AIP commercial adoption accelerating into enterprise. Premium 70x+ revenue multiple prices in near-perfection.',
+  DDOG:  'Observability and security platform consolidation is secular. Rule-of-40 metrics (growth + margin) best-in-class among mid-cap software. Multiple compression risk if growth falls below 25%.',
+  SNOW:  'Data cloud platform well-positioned for AI workloads. CEO change (Sridhar Ramaswamy) shifted strategy toward AI. Path to profitability at scale is the key question for long-term holders.',
+  PATH:  'Robotic process automation (RPA) market leader facing disruption from AI agents that can complete tasks without explicit programming. AI co-pilot additions are defensive positioning.',
+  AI:    'Enterprise AI software with US government contracts. Revenue model shift from subscription to consumption-based created near-term uncertainty. Baker Hughes partnership is a notable commercial anchor.',
+
+  // ── Fintech & Payments ────────────────────────────────────────────────────
+  HOOD:  'Retail trading platform with 23M+ funded accounts. Options and crypto trading are the highest-margin revenue streams. Regulatory risk (payment for order flow) and cyclical revenue model are key risks.',
+  SOFI:  'Banking charter (obtained 2022) improves unit economics vs. fintech-only peers. Student loan refinancing headwinds from forgiveness policy uncertainty. Strong cross-sell of multiple financial products.',
+  AFRM:  'BNPL market leader but faces rising delinquency risk as consumer credit normalizes. Apple Pay Later shutdown was a competitive relief. Zero-interest deals with merchants are volume drivers.',
+  UPST:  'AI-powered personal loan origination — model performs differently across credit cycles. Macro sensitivity (rates, unemployment) creates volatile revenue. Funding partner concentration is a structural risk.',
+
+  // ── AI Speculative ────────────────────────────────────────────────────────
+  SMCI:  'Accounting restatement concerns created significant overhang. AI server demand is real and margins improving. High risk/reward — small position size appropriate given governance uncertainty.',
+  APLD:  'Pure-play AI data center operator. Revenue growing fast but not yet profitable. Sensitive to power costs and GPU availability — a classic high-risk swing trade setup.',
+  IONQ:  'Trapped-ion quantum computing approach may have long-term fidelity advantage over superconducting qubits. Commercial use cases still very early. Government contracts provide near-term revenue floor.',
+  SOUN:  'Voice AI for automotive and enterprise (McDonald\'s, Stellantis design wins). Small revenue base means growth % looks impressive but absolute numbers remain modest. High sentiment/speculative stock.',
+  BBAI:  'AI decision intelligence for national security customers. Revenue growth has been inconsistent. Small float creates high volatility. Speculative hold — needs contract expansion to justify valuation.',
+
+  // ── Commodities / ETFs ────────────────────────────────────────────────────
+  GLD:   'Gold ETF tracking spot price. Beneficiary of rate cut cycles, USD weakness, and geopolitical risk. Central bank gold buying (EM countries diversifying reserves) is a structural demand tailwind.',
+  SLV:   'Silver ETF with dual demand — monetary safe haven + industrial use (solar panels, EV batteries, electronics). Higher beta than gold; outperforms in strong commodity bull markets.',
 };
+
 
 export type DipAnalysis = {
   isDip: boolean;

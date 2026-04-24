@@ -73,7 +73,14 @@ export interface YahooFundamentals {
   analystRating: string | null; // "Strong Buy" | "Buy" | "Hold" | "Underperform" | "Sell"
   revenueGrowth: number | null; // YoY decimal e.g. 0.32 = 32%
   earningsGrowth: number | null;
-  profitMargin: number | null;
+  profitMargin: number | null;  // decimal e.g. 0.15 = 15%
+  // Extra fields for 7-criteria health score
+  roeTTM: number | null;          // decimal e.g. 0.183 = 18.3%
+  operatingMargin: number | null; // decimal e.g. 0.124 = 12.4%
+  debtToEquity: number | null;    // % e.g. 150 = 1.5x D/E (same units as Finnhub)
+  currentRatio: number | null;    // ratio e.g. 1.8
+  cashFlowPerShare: number | null; // currency per share (approx from FCF / shares)
+  dividendYield: number | null;   // % e.g. 2.1
 }
 
 function mapAnalystRating(raw: string | null | undefined): string | null {
@@ -95,7 +102,8 @@ function mapAnalystRating(raw: string | null | undefined): string | null {
  */
 export async function fetchYahooFundamentals(symbol: string): Promise<YahooFundamentals | null> {
   const yfSymbol = toYahooSummarySymbol(symbol);
-  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yfSymbol)}?modules=financialData,summaryProfile,summaryDetail,quoteType`;
+  // Include defaultKeyStatistics for sharesOutstanding (needed for cashFlowPerShare)
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yfSymbol)}?modules=financialData,summaryProfile,summaryDetail,quoteType,defaultKeyStatistics`;
 
   try {
     const res = await fetch(url, { headers: YF_HEADERS, cache: 'no-store' });
@@ -104,10 +112,11 @@ export async function fetchYahooFundamentals(symbol: string): Promise<YahooFunda
     const summary = data?.quoteSummary?.result?.[0];
     if (!summary) return null;
 
-    const fd = summary.financialData ?? {};
-    const sp = summary.summaryProfile ?? {};
-    const sd = summary.summaryDetail ?? {};
-    const qt = summary.quoteType ?? {};
+    const fd  = summary.financialData        ?? {};
+    const sp  = summary.summaryProfile       ?? {};
+    const sd  = summary.summaryDetail        ?? {};
+    const qt  = summary.quoteType            ?? {};
+    const ks  = summary.defaultKeyStatistics ?? {};
 
     // Yahoo returns numeric fields as { raw: number, fmt: string }; use .raw
     function raw(obj: Record<string, unknown> | null | undefined, key: string): number | null {
@@ -127,16 +136,30 @@ export async function fetchYahooFundamentals(symbol: string): Promise<YahooFunda
     const forwardPE = raw(sd, 'forwardPE') ?? raw(fd, 'forwardPE');
     const targetMeanPrice = raw(fd, 'targetMeanPrice');
     const targetHighPrice = raw(fd, 'targetHighPrice');
-    const targetLowPrice = raw(fd, 'targetLowPrice');
+    const targetLowPrice  = raw(fd, 'targetLowPrice');
     const numberOfAnalysts = (raw(fd, 'numberOfAnalystOpinions') ?? 0) as number;
     const analystRatingRaw = fd.recommendationKey as string | null | undefined;
     const analystRating = mapAnalystRating(analystRatingRaw);
-    const revenueGrowth = raw(fd, 'revenueGrowth');
+    const revenueGrowth  = raw(fd, 'revenueGrowth');
     const earningsGrowth = raw(fd, 'earningsGrowth');
-    const profitMargin = raw(fd, 'profitMargins');
+    const profitMargin   = raw(fd, 'profitMargins');
 
-    const name = (qt.longName as string) || (qt.shortName as string) || symbol;
-    const sector = (sp.sector as string) || '';
+    // Health-score fields
+    const roeTTM        = raw(fd, 'returnOnEquity');    // decimal e.g. 0.183
+    const operatingMargin = raw(fd, 'operatingMargins'); // decimal e.g. 0.124
+    const debtToEquity  = raw(fd, 'debtToEquity');      // % e.g. 150 = 1.5x D/E
+    const currentRatio  = raw(fd, 'currentRatio');       // ratio e.g. 1.8
+    const dividendYield = raw(sd, 'dividendYield') ?? raw(sd, 'trailingAnnualDividendYield');
+
+    // cashFlowPerShare ≈ freeCashflow / sharesOutstanding
+    const fcf    = raw(fd, 'freeCashflow');
+    const shares = raw(ks, 'sharesOutstanding');
+    const cashFlowPerShare = (fcf != null && shares != null && shares > 0)
+      ? fcf / shares
+      : null;
+
+    const name     = (qt.longName as string) || (qt.shortName as string) || symbol;
+    const sector   = (sp.sector   as string) || '';
     const industry = (sp.industry as string) || '';
     const currency = (qt.currency as string) || (sd.currency as string) || 'USD';
 
@@ -157,6 +180,12 @@ export async function fetchYahooFundamentals(symbol: string): Promise<YahooFunda
       revenueGrowth,
       earningsGrowth,
       profitMargin,
+      roeTTM,
+      operatingMargin,
+      debtToEquity,
+      currentRatio,
+      cashFlowPerShare,
+      dividendYield,
     };
   } catch {
     return null;

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { SignalBadge } from '@/components/trading/SignalBadge';
 import { AddToWatchlistButton } from '@/components/trading/AddToWatchlistButton';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
+import { StockHeadline } from '@/components/trading/StockHeadline';
 import type { Recommendation } from '@/lib/recommendations';
 import type { StockCategory, DipAnalysis, CategoryMeta } from '@/lib/trendAnalysis';
 
@@ -39,6 +40,28 @@ function RrColor({ rr }: { rr: number }) {
   if (rr >= 2) color = 'text-emerald-400';
   else if (rr >= 1) color = 'text-amber-400';
   return <span className={`font-semibold ${color}`}>{rr.toFixed(1)}:1</span>;
+}
+
+function AnalystBar({ buy, hold, sell }: { buy: number; hold: number; sell: number }) {
+  const total = buy + hold + sell;
+  if (total === 0) return null;
+  const buyPct  = Math.round((buy  / total) * 100);
+  const holdPct = Math.round((hold / total) * 100);
+  const sellPct = 100 - buyPct - holdPct;
+  return (
+    <div className="space-y-1.5">
+      <div className="flex h-2 rounded-full overflow-hidden gap-px">
+        {buyPct  > 0 && <div className="bg-emerald-500 rounded-l-full" style={{ width: `${buyPct}%`  }} />}
+        {holdPct > 0 && <div className="bg-amber-500"                  style={{ width: `${holdPct}%` }} />}
+        {sellPct > 0 && <div className="bg-red-500 rounded-r-full"     style={{ width: `${sellPct}%` }} />}
+      </div>
+      <div className="flex justify-between text-xs">
+        <span className="text-emerald-400">Buy {buy}</span>
+        <span className="text-amber-400">Hold {hold}</span>
+        <span className="text-red-400">Sell {sell}</span>
+      </div>
+    </div>
+  );
 }
 
 function AnalystRatingBadge({ rating }: { rating: string | null }) {
@@ -169,12 +192,8 @@ export function TrendCard({
         </div>
       )}
 
-      {/* Stock Note */}
-      {stockNote && (
-        <p className="text-xs text-gray-500 italic leading-relaxed border-l-2 border-gray-700 pl-2">
-          {stockNote}
-        </p>
-      )}
+      {/* Latest headline — live from Finnhub, lazy-loaded */}
+      <StockHeadline symbol={rec.symbol} companyName={rec.name} />
 
       {/* Metrics Row */}
       <div className="flex items-center gap-4 text-sm flex-wrap">
@@ -257,26 +276,21 @@ export function TrendCard({
         </div>
       </div>
 
-      {/* Analyst Row */}
+      {/* Analyst Consensus */}
       {rec.numberOfAnalysts > 0 && (
-        <div className="flex items-center gap-3 text-xs flex-wrap">
-          <AnalystRatingBadge rating={rec.analystRating} />
-          {rec.analystUpside !== null && (
-            <span
-              className={`font-medium ${
-                rec.analystUpside >= 10
-                  ? 'text-emerald-400'
-                  : rec.analystUpside >= 0
-                  ? 'text-green-400'
-                  : 'text-red-400'
-              }`}
-            >
-              {fmtPct(rec.analystUpside)} upside
-            </span>
-          )}
-          <span className="text-gray-600">
-            {rec.numberOfAnalysts} analyst{rec.numberOfAnalysts !== 1 ? 's' : ''}
-          </span>
+        <div className="bg-gray-950 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Analyst Consensus</span>
+            <div className="flex items-center gap-2">
+              <AnalystRatingBadge rating={rec.analystRating} />
+              <span className="text-xs text-gray-400">{rec.numberOfAnalysts} analyst{rec.numberOfAnalysts !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+          <AnalystBar
+            buy={rec.analystBuy ?? 0}
+            hold={rec.analystHold ?? 0}
+            sell={rec.analystSell ?? 0}
+          />
         </div>
       )}
 

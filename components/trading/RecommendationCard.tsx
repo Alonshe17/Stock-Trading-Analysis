@@ -3,6 +3,7 @@ import { SignalBadge } from '@/components/trading/SignalBadge';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { AddToWatchlistButton } from '@/components/trading/AddToWatchlistButton';
 import { getFundamentalHealth } from '@/lib/trendAnalysis';
+import { StockHeadline } from '@/components/trading/StockHeadline';
 import type { Recommendation } from '@/lib/recommendations';
 
 interface Props {
@@ -273,6 +274,9 @@ export function RecommendationCard({ rec }: Props) {
           )}
         </div>
       </div>
+
+      {/* Latest headline — live from Finnhub, lazy-loaded */}
+      <StockHeadline symbol={rec.symbol} companyName={rec.name} />
 
       {/* Footer */}
       <div className="pt-2 border-t border-gray-800 flex items-center justify-between gap-2">

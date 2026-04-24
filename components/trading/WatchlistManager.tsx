@@ -10,6 +10,7 @@ import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { AddToWatchlistButton } from '@/components/trading/AddToWatchlistButton';
 import type { AnalysisResult } from '@/lib/analysis';
 import type { WatchlistItem } from '@/lib/watchlist';
+import { StockHeadline } from '@/components/trading/StockHeadline';
 
 const STORAGE_KEY = 'swingmonitor_watchlist';
 
@@ -569,6 +570,9 @@ function StockCardEditable({
             </div>
           )}
         </div>
+
+      {/* Latest headline — live from Finnhub, lazy-loaded */}
+      <StockHeadline symbol={data.symbol} companyName={item.name} />
 
       {/* Footer — Full Analysis link, same style as TrendCard */}
       <div className="pt-3 mt-1 border-t border-gray-800 flex items-center justify-between gap-2">

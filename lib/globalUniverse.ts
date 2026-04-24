@@ -74,77 +74,85 @@ export const US_REC_STOCKS: StockMeta[] = [
   { symbol: 'ENPH',  name: 'Enphase Energy',             sector: 'Technology',             exchange: 'NASDAQ', currency: 'USD', category: 'EV & Clean Energy' },
 ];
 
+/**
+ * ASIA_STOCKS — all local-exchange tickers replaced with US-listed ADRs (NYSE/NASDAQ)
+ * or liquid OTC ADRs so that Finnhub analyst consensus data is available.
+ */
 export const ASIA_STOCKS: StockMeta[] = [
-  // Japan
-  { symbol: '7203.T',   name: 'Toyota Motor',          sector: 'Consumer Cyclical',  exchange: 'TSE',  currency: 'JPY' },
-  { symbol: '6758.T',   name: 'Sony Group',             sector: 'Technology',         exchange: 'TSE',  currency: 'JPY' },
-  { symbol: '9984.T',   name: 'SoftBank Group',         sector: 'Technology',         exchange: 'TSE',  currency: 'JPY' },
-  { symbol: '6861.T',   name: 'Keyence',                sector: 'Technology',         exchange: 'TSE',  currency: 'JPY' },
-  { symbol: '6367.T',   name: 'Daikin Industries',      sector: 'Industrials',        exchange: 'TSE',  currency: 'JPY' },
-  { symbol: '8306.T',   name: 'MUFG',                   sector: 'Financial Services', exchange: 'TSE',  currency: 'JPY' },
-  { symbol: '6501.T',   name: 'Hitachi',                sector: 'Industrials',        exchange: 'TSE',  currency: 'JPY' },
-  { symbol: '9432.T',   name: 'NTT',                    sector: 'Communication Services', exchange: 'TSE', currency: 'JPY' },
-  { symbol: '6902.T',   name: 'DENSO',                  sector: 'Consumer Cyclical',  exchange: 'TSE',  currency: 'JPY' },
-  // Hong Kong
-  { symbol: '0700.HK',  name: 'Tencent Holdings',       sector: 'Technology',         exchange: 'HKEX', currency: 'HKD' },
-  { symbol: '9988.HK',  name: 'Alibaba Group',          sector: 'Consumer Cyclical',  exchange: 'HKEX', currency: 'HKD' },
-  { symbol: '3690.HK',  name: 'Meituan',                sector: 'Consumer Cyclical',  exchange: 'HKEX', currency: 'HKD' },
-  { symbol: '1810.HK',  name: 'Xiaomi',                 sector: 'Technology',         exchange: 'HKEX', currency: 'HKD' },
-  { symbol: '0941.HK',  name: 'China Mobile',           sector: 'Communication Services', exchange: 'HKEX', currency: 'HKD' },
-  { symbol: '2318.HK',  name: 'Ping An Insurance',      sector: 'Financial Services', exchange: 'HKEX', currency: 'HKD' },
-  { symbol: '0005.HK',  name: 'HSBC Holdings HK',       sector: 'Financial Services', exchange: 'HKEX', currency: 'HKD' },
-  // Korea
-  { symbol: '005930.KS', name: 'Samsung Electronics',  sector: 'Technology',         exchange: 'KRX',  currency: 'KRW' },
-  { symbol: '000660.KS', name: 'SK Hynix',              sector: 'Technology',         exchange: 'KRX',  currency: 'KRW' },
-  { symbol: '005380.KS', name: 'Hyundai Motor',         sector: 'Consumer Cyclical',  exchange: 'KRX',  currency: 'KRW' },
-  // Singapore
-  { symbol: 'D05.SI',   name: 'DBS Group',              sector: 'Financial Services', exchange: 'SGX',  currency: 'SGD' },
-  { symbol: 'O39.SI',   name: 'OCBC Bank',              sector: 'Financial Services', exchange: 'SGX',  currency: 'SGD' },
-  { symbol: 'U11.SI',   name: 'UOB',                    sector: 'Financial Services', exchange: 'SGX',  currency: 'SGD' },
-  // Australia
-  { symbol: 'CBA.AX',   name: 'Commonwealth Bank',      sector: 'Financial Services', exchange: 'ASX',  currency: 'AUD' },
-  { symbol: 'BHP.AX',   name: 'BHP Group',              sector: 'Basic Materials',    exchange: 'ASX',  currency: 'AUD' },
-  { symbol: 'CSL.AX',   name: 'CSL Limited',            sector: 'Healthcare',         exchange: 'ASX',  currency: 'AUD' },
-  // India
-  { symbol: 'RELIANCE.NS', name: 'Reliance Industries', sector: 'Energy',             exchange: 'NSE',  currency: 'INR' },
-  { symbol: 'TCS.NS',      name: 'Tata Consultancy',    sector: 'Technology',         exchange: 'NSE',  currency: 'INR' },
-  { symbol: 'INFY.NS',     name: 'Infosys',             sector: 'Technology',         exchange: 'NSE',  currency: 'INR' },
-  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank',           sector: 'Financial Services', exchange: 'NSE',  currency: 'INR' },
+  // Japan — US ADRs
+  { symbol: 'TM',     name: 'Toyota Motor ADR',          sector: 'Consumer Cyclical',      exchange: 'NYSE',   currency: 'USD' },
+  { symbol: 'SONY',   name: 'Sony Group ADR',            sector: 'Technology',             exchange: 'NYSE',   currency: 'USD' },
+  { symbol: 'SFTBY',  name: 'SoftBank Group ADR',        sector: 'Technology',             exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'KYCCF',  name: 'Keyence ADR',               sector: 'Technology',             exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'DKILY',  name: 'Daikin Industries ADR',     sector: 'Industrials',            exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'MUFG',   name: 'Mitsubishi UFJ Financial',  sector: 'Financial Services',     exchange: 'NYSE',   currency: 'USD' },
+  { symbol: 'HTHIY',  name: 'Hitachi ADR',               sector: 'Industrials',            exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'NTTYY',  name: 'NTT ADR',                   sector: 'Communication Services', exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'DNZOY',  name: 'DENSO ADR',                 sector: 'Consumer Cyclical',      exchange: 'OTC',    currency: 'USD' },
+  // China / Hong Kong — US ADRs
+  { symbol: 'TCEHY',  name: 'Tencent Holdings ADR',      sector: 'Technology',             exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'BABA',   name: 'Alibaba Group',             sector: 'Consumer Cyclical',      exchange: 'NYSE',   currency: 'USD' },
+  { symbol: 'MPNGY',  name: 'Meituan ADR',               sector: 'Consumer Cyclical',      exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'XIACY',  name: 'Xiaomi ADR',                sector: 'Technology',             exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'CHMXY',  name: 'China Mobile ADR',          sector: 'Communication Services', exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'PNGAY',  name: 'Ping An Insurance ADR',     sector: 'Financial Services',     exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'HSBC',   name: 'HSBC Holdings ADR',         sector: 'Financial Services',     exchange: 'NYSE',   currency: 'USD' },
+  // Korea — OTC ADRs
+  { symbol: 'SSNLF',  name: 'Samsung Electronics ADR',   sector: 'Technology',             exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'HXSCL',  name: 'SK Hynix ADR',              sector: 'Technology',             exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'HYMTF',  name: 'Hyundai Motor ADR',         sector: 'Consumer Cyclical',      exchange: 'OTC',    currency: 'USD' },
+  // Singapore — OTC ADRs
+  { symbol: 'DBSDY',  name: 'DBS Group ADR',             sector: 'Financial Services',     exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'OVCHY',  name: 'OCBC Bank ADR',             sector: 'Financial Services',     exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'UOVEY',  name: 'UOB ADR',                   sector: 'Financial Services',     exchange: 'OTC',    currency: 'USD' },
+  // Australia — US ADRs
+  { symbol: 'CBAUF',  name: 'Commonwealth Bank ADR',     sector: 'Financial Services',     exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'BHP',    name: 'BHP Group ADR',             sector: 'Basic Materials',        exchange: 'NYSE',   currency: 'USD' },
+  { symbol: 'CSLLY',  name: 'CSL Limited ADR',           sector: 'Healthcare',             exchange: 'OTC',    currency: 'USD' },
+  // India — US ADRs
+  { symbol: 'RLNIY',  name: 'Reliance Industries ADR',   sector: 'Energy',                 exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'TCSYY',  name: 'Tata Consultancy ADR',      sector: 'Technology',             exchange: 'OTC',    currency: 'USD' },
+  { symbol: 'INFY',   name: 'Infosys ADR',               sector: 'Technology',             exchange: 'NYSE',   currency: 'USD' },
+  { symbol: 'HDB',    name: 'HDFC Bank ADR',             sector: 'Financial Services',     exchange: 'NYSE',   currency: 'USD' },
 ];
 
+/**
+ * EUR_UK_STOCKS — all local-exchange tickers (LSE .L, XETRA .DE, Euronext .PA/.AS, SIX .SW)
+ * replaced with US-listed ADRs so that Finnhub analyst consensus data is available.
+ */
 export const EUR_UK_STOCKS: StockMeta[] = [
-  // UK
-  { symbol: 'SHEL.L',  name: 'Shell',              sector: 'Energy',                 exchange: 'LSE',      currency: 'GBP', category: 'Energy & Oil' },
-  { symbol: 'AZN.L',   name: 'AstraZeneca',        sector: 'Healthcare',             exchange: 'LSE',      currency: 'GBP', category: 'Healthcare & Pharma' },
-  { symbol: 'HSBA.L',  name: 'HSBC Holdings',      sector: 'Financial Services',     exchange: 'LSE',      currency: 'GBP' },
-  { symbol: 'BP.L',    name: 'BP',                 sector: 'Energy',                 exchange: 'LSE',      currency: 'GBP', category: 'Energy & Oil' },
-  { symbol: 'RIO.L',   name: 'Rio Tinto',          sector: 'Basic Materials',        exchange: 'LSE',      currency: 'GBP' },
-  { symbol: 'ULVR.L',  name: 'Unilever',           sector: 'Consumer Defensive',     exchange: 'LSE',      currency: 'GBP', category: 'Consumer Defensive' },
-  { symbol: 'GSK.L',   name: 'GSK',                sector: 'Healthcare',             exchange: 'LSE',      currency: 'GBP', category: 'Healthcare & Pharma' },
-  { symbol: 'BARC.L',  name: 'Barclays',           sector: 'Financial Services',     exchange: 'LSE',      currency: 'GBP', category: 'Banking & Finance' },
-  { symbol: 'LLOY.L',  name: 'Lloyds Banking',     sector: 'Financial Services',     exchange: 'LSE',      currency: 'GBP', category: 'Banking & Finance' },
-  { symbol: 'REL.L',   name: 'RELX',               sector: 'Communication Services', exchange: 'LSE',      currency: 'GBP' },
-  // Germany
-  { symbol: 'SAP.DE',  name: 'SAP',                sector: 'Technology',             exchange: 'XETRA',    currency: 'EUR', category: 'AI & Cloud' },
-  { symbol: 'SIE.DE',  name: 'Siemens',            sector: 'Industrials',            exchange: 'XETRA',    currency: 'EUR', category: 'Industrials' },
-  { symbol: 'ALV.DE',  name: 'Allianz',            sector: 'Financial Services',     exchange: 'XETRA',    currency: 'EUR', category: 'Banking & Finance' },
-  { symbol: 'BAYN.DE', name: 'Bayer',              sector: 'Healthcare',             exchange: 'XETRA',    currency: 'EUR', category: 'Healthcare & Pharma' },
-  { symbol: 'MBG.DE',  name: 'Mercedes-Benz',      sector: 'Consumer Cyclical',      exchange: 'XETRA',    currency: 'EUR', category: 'EV & Clean Energy' },
-  { symbol: 'DTE.DE',  name: 'Deutsche Telekom',   sector: 'Communication Services', exchange: 'XETRA',    currency: 'EUR' },
-  // France
-  { symbol: 'MC.PA',   name: 'LVMH',               sector: 'Consumer Cyclical',      exchange: 'Euronext', currency: 'EUR', category: 'Consumer Cyclical' },
-  { symbol: 'OR.PA',   name: "L'Oreal",            sector: 'Consumer Defensive',     exchange: 'Euronext', currency: 'EUR', category: 'Consumer Defensive' },
-  { symbol: 'SAN.PA',  name: 'Sanofi',             sector: 'Healthcare',             exchange: 'Euronext', currency: 'EUR', category: 'Healthcare & Pharma' },
-  { symbol: 'BNP.PA',  name: 'BNP Paribas',        sector: 'Financial Services',     exchange: 'Euronext', currency: 'EUR', category: 'Banking & Finance' },
-  { symbol: 'AIR.PA',  name: 'Airbus',             sector: 'Industrials',            exchange: 'Euronext', currency: 'EUR', category: 'Defense & Aerospace' },
-  { symbol: 'TTE.PA',  name: 'TotalEnergies',      sector: 'Energy',                 exchange: 'Euronext', currency: 'EUR', category: 'Energy & Oil' },
-  // Netherlands
-  { symbol: 'ASML.AS', name: 'ASML Holding',       sector: 'Technology',             exchange: 'Euronext', currency: 'EUR', category: 'Semiconductors' },
-  // Switzerland
-  { symbol: 'NESN.SW', name: 'Nestle',             sector: 'Consumer Defensive',     exchange: 'SIX',      currency: 'CHF', category: 'Consumer Defensive' },
-  { symbol: 'ROG.SW',  name: 'Roche Holding',      sector: 'Healthcare',             exchange: 'SIX',      currency: 'CHF', category: 'Healthcare & Pharma' },
-  { symbol: 'NOVN.SW', name: 'Novartis',           sector: 'Healthcare',             exchange: 'SIX',      currency: 'CHF', category: 'Healthcare & Pharma' },
-  { symbol: 'ABBN.SW', name: 'ABB',                sector: 'Industrials',            exchange: 'SIX',      currency: 'CHF', category: 'Industrials' },
+  // UK — NYSE/NASDAQ-listed ADRs
+  { symbol: 'SHEL',   name: 'Shell ADR',               sector: 'Energy',                 exchange: 'NYSE',   currency: 'USD', category: 'Energy & Oil' },
+  { symbol: 'AZN',    name: 'AstraZeneca ADR',         sector: 'Healthcare',             exchange: 'NASDAQ', currency: 'USD', category: 'Healthcare & Pharma' },
+  { symbol: 'HSBC',   name: 'HSBC Holdings ADR',       sector: 'Financial Services',     exchange: 'NYSE',   currency: 'USD' },
+  { symbol: 'BP',     name: 'BP ADR',                  sector: 'Energy',                 exchange: 'NYSE',   currency: 'USD', category: 'Energy & Oil' },
+  { symbol: 'RIO',    name: 'Rio Tinto ADR',           sector: 'Basic Materials',        exchange: 'NYSE',   currency: 'USD' },
+  { symbol: 'UL',     name: 'Unilever ADR',            sector: 'Consumer Defensive',     exchange: 'NYSE',   currency: 'USD', category: 'Consumer Defensive' },
+  { symbol: 'GSK',    name: 'GSK ADR',                 sector: 'Healthcare',             exchange: 'NYSE',   currency: 'USD', category: 'Healthcare & Pharma' },
+  { symbol: 'BCS',    name: 'Barclays ADR',            sector: 'Financial Services',     exchange: 'NYSE',   currency: 'USD', category: 'Banking & Finance' },
+  { symbol: 'LYG',    name: 'Lloyds Banking ADR',      sector: 'Financial Services',     exchange: 'NYSE',   currency: 'USD', category: 'Banking & Finance' },
+  { symbol: 'RELX',   name: 'RELX ADR',                sector: 'Communication Services', exchange: 'NYSE',   currency: 'USD' },
+  // Germany — NYSE-listed ADR / liquid OTC
+  { symbol: 'SAP',    name: 'SAP ADR',                 sector: 'Technology',             exchange: 'NYSE',   currency: 'USD', category: 'AI & Cloud' },
+  { symbol: 'SIEGY',  name: 'Siemens ADR',             sector: 'Industrials',            exchange: 'OTC',    currency: 'USD', category: 'Industrials' },
+  { symbol: 'ALIZY',  name: 'Allianz ADR',             sector: 'Financial Services',     exchange: 'OTC',    currency: 'USD', category: 'Banking & Finance' },
+  { symbol: 'BAYRY',  name: 'Bayer ADR',               sector: 'Healthcare',             exchange: 'OTC',    currency: 'USD', category: 'Healthcare & Pharma' },
+  { symbol: 'MBGAF',  name: 'Mercedes-Benz ADR',       sector: 'Consumer Cyclical',      exchange: 'OTC',    currency: 'USD', category: 'EV & Clean Energy' },
+  { symbol: 'DTEGY',  name: 'Deutsche Telekom ADR',    sector: 'Communication Services', exchange: 'OTC',    currency: 'USD' },
+  // France — NYSE/NASDAQ-listed ADR / liquid OTC
+  { symbol: 'LVMUY',  name: 'LVMH ADR',               sector: 'Consumer Cyclical',      exchange: 'OTC',    currency: 'USD', category: 'Consumer Cyclical' },
+  { symbol: 'LRLCY',  name: "L'Oreal ADR",            sector: 'Consumer Defensive',     exchange: 'OTC',    currency: 'USD', category: 'Consumer Defensive' },
+  { symbol: 'SNY',    name: 'Sanofi ADR',              sector: 'Healthcare',             exchange: 'NASDAQ', currency: 'USD', category: 'Healthcare & Pharma' },
+  { symbol: 'BNPQY',  name: 'BNP Paribas ADR',        sector: 'Financial Services',     exchange: 'OTC',    currency: 'USD', category: 'Banking & Finance' },
+  { symbol: 'EADSY',  name: 'Airbus ADR',              sector: 'Industrials',            exchange: 'OTC',    currency: 'USD', category: 'Defense & Aerospace' },
+  { symbol: 'TTE',    name: 'TotalEnergies ADR',       sector: 'Energy',                 exchange: 'NYSE',   currency: 'USD', category: 'Energy & Oil' },
+  // Netherlands — NASDAQ-listed
+  { symbol: 'ASML',   name: 'ASML Holding',            sector: 'Technology',             exchange: 'NASDAQ', currency: 'USD', category: 'Semiconductors' },
+  // Switzerland — NYSE-listed ADR / liquid OTC
+  { symbol: 'NSRGY',  name: 'Nestle ADR',              sector: 'Consumer Defensive',     exchange: 'OTC',    currency: 'USD', category: 'Consumer Defensive' },
+  { symbol: 'RHHBY',  name: 'Roche Holding ADR',       sector: 'Healthcare',             exchange: 'OTC',    currency: 'USD', category: 'Healthcare & Pharma' },
+  { symbol: 'NVS',    name: 'Novartis ADR',            sector: 'Healthcare',             exchange: 'NYSE',   currency: 'USD', category: 'Healthcare & Pharma' },
+  { symbol: 'ABB',    name: 'ABB Ltd ADR',             sector: 'Industrials',            exchange: 'NYSE',   currency: 'USD', category: 'Industrials' },
 ];
 
 export const GROWTH_STOCKS: StockMeta[] = [
@@ -177,8 +185,8 @@ export const GROWTH_STOCKS: StockMeta[] = [
 
 /**
  * TREND_UNIVERSE — curated list of ~65 stocks covering all 14 categories.
- * Used by the /trends page. Includes key international ADRs and European names
- * alongside US large/mid caps. All fetched through Yahoo Finance.
+ * Used by the /trends page. All non-US symbols replaced with US ADRs for
+ * consistent Finnhub analyst consensus coverage.
  */
 export const TREND_UNIVERSE: StockMeta[] = [
   // ── Defense & Aerospace ───────────────────────────────────────────────────
@@ -194,7 +202,7 @@ export const TREND_UNIVERSE: StockMeta[] = [
   { symbol: 'AVGO',  name: 'Broadcom',                 sector: 'Technology',         exchange: 'NASDAQ', currency: 'USD', category: 'Semiconductors' },
   { symbol: 'TSM',   name: 'Taiwan Semiconductor ADR', sector: 'Technology',         exchange: 'NYSE',   currency: 'USD', category: 'Semiconductors' },
   { symbol: 'MU',    name: 'Micron Technology',        sector: 'Technology',         exchange: 'NASDAQ', currency: 'USD', category: 'Semiconductors' },
-  { symbol: 'ASML.AS', name: 'ASML Holding',           sector: 'Technology',         exchange: 'Euronext', currency: 'EUR', category: 'Semiconductors' },
+  { symbol: 'ASML',  name: 'ASML Holding',             sector: 'Technology',         exchange: 'NASDAQ', currency: 'USD', category: 'Semiconductors' },
 
   // ── AI & Cloud ────────────────────────────────────────────────────────────
   { symbol: 'MSFT',  name: 'Microsoft',                sector: 'Technology',         exchange: 'NASDAQ', currency: 'USD', category: 'AI & Cloud' },
@@ -210,13 +218,13 @@ export const TREND_UNIVERSE: StockMeta[] = [
   { symbol: 'UNH',   name: 'UnitedHealth Group',       sector: 'Healthcare',         exchange: 'NYSE',   currency: 'USD', category: 'Healthcare & Pharma' },
   { symbol: 'ABBV',  name: 'AbbVie',                   sector: 'Healthcare',         exchange: 'NYSE',   currency: 'USD', category: 'Healthcare & Pharma' },
   { symbol: 'MRK',   name: 'Merck',                    sector: 'Healthcare',         exchange: 'NYSE',   currency: 'USD', category: 'Healthcare & Pharma' },
-  { symbol: 'AZN.L', name: 'AstraZeneca',              sector: 'Healthcare',         exchange: 'LSE',    currency: 'GBP', category: 'Healthcare & Pharma' },
+  { symbol: 'AZN',   name: 'AstraZeneca ADR',          sector: 'Healthcare',         exchange: 'NASDAQ', currency: 'USD', category: 'Healthcare & Pharma' },
 
   // ── Energy & Oil ──────────────────────────────────────────────────────────
   { symbol: 'XOM',   name: 'ExxonMobil',               sector: 'Energy',             exchange: 'NYSE',   currency: 'USD', category: 'Energy & Oil' },
   { symbol: 'CVX',   name: 'Chevron',                  sector: 'Energy',             exchange: 'NYSE',   currency: 'USD', category: 'Energy & Oil' },
   { symbol: 'COP',   name: 'ConocoPhillips',           sector: 'Energy',             exchange: 'NYSE',   currency: 'USD', category: 'Energy & Oil' },
-  { symbol: 'SHEL.L', name: 'Shell',                   sector: 'Energy',             exchange: 'LSE',    currency: 'GBP', category: 'Energy & Oil' },
+  { symbol: 'SHEL',  name: 'Shell ADR',                sector: 'Energy',             exchange: 'NYSE',   currency: 'USD', category: 'Energy & Oil' },
 
   // ── Banking & Finance ─────────────────────────────────────────────────────
   { symbol: 'JPM',   name: 'JPMorgan Chase',           sector: 'Financial Services', exchange: 'NYSE',   currency: 'USD', category: 'Banking & Finance' },

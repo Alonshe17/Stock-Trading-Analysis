@@ -91,19 +91,15 @@ export default async function StockPage({ params }: Props) {
         </div>
 
         {/* Charts */}
-        <div className="space-y-4 mb-6">
+        <div className="mb-6">
           <CandlestickChart
-            candles={dailyCandles.slice(-252)}
-            height={420}
-            title={`${a.symbol} — Daily Chart (1 Year) · EMA 50 & EMA 200`}
+            candles={dailyCandles}
+            candles15m={candles15m}
+            height={440}
+            title={`${a.symbol} — Price Chart`}
+            showRangeSelector
+            defaultRange="6M"
           />
-          {candles15m.length > 0 && (
-            <CandlestickChart
-              candles={candles15m}
-              height={280}
-              title={`${a.symbol} — 15-Minute Chart (Entry Timing)`}
-            />
-          )}
         </div>
 
         {/* Analysis grid */}
