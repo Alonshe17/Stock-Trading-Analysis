@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Candle } from '@/lib/finnhub';
 
 type Range = '1D' | '5D' | '1M' | '6M' | 'YTD' | '5Y';
@@ -13,6 +13,8 @@ type TooltipBar = {
   close: number;
   volume: number;
   isUp: boolean;
+  x: number;   // px from left edge of chart container
+  y: number;   // px from top edge of chart container
 };
 
 type Props = {
@@ -72,6 +74,67 @@ function fmtVol(v: number): string {
   if (v >= 1_000_000)     return (v / 1_000_000).toFixed(2) + 'M';
   if (v >= 1_000)         return (v / 1_000).toFixed(1) + 'K';
   return String(v);
+}
+
+// ── Floating OHLCV tooltip ──────────────────────────────────────────────────
+const TOOLTIP_W = 160; // approximate tooltip width in px
+const TOOLTIP_H = 130; // approximate tooltip height in px
+const OFFSET    = 14;  // gap between crosshair and tooltip edge
+
+function TooltipOverlay({
+  tooltip,
+  containerRef,
+}: {
+  tooltip: TooltipBar;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const w = containerRef.current?.clientWidth  ?? 600;
+  const h = containerRef.current?.clientHeight ?? 400;
+
+  // Flip horizontally when crosshair is in the right 40% of the chart
+  const flipX = tooltip.x > w * 0.6;
+  // Flip vertically when crosshair is in the bottom 35%
+  const flipY = tooltip.y > h * 0.65;
+
+  const left = flipX ? tooltip.x - TOOLTIP_W - OFFSET : tooltip.x + OFFSET;
+  const top  = flipY ? tooltip.y - TOOLTIP_H - OFFSET : tooltip.y + OFFSET;
+
+  return (
+    <div
+      className="absolute pointer-events-none z-10 bg-gray-900/95 border border-gray-700 rounded-lg shadow-2xl px-3.5 py-2.5 text-xs backdrop-blur-sm"
+      style={{ left, top, width: TOOLTIP_W }}
+    >
+      <div className="text-gray-400 font-medium mb-2 text-[11px] tracking-wide border-b border-gray-700/60 pb-1.5">
+        {tooltip.date}
+      </div>
+      <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+        <span className="text-gray-500">Open</span>
+        <span className="text-gray-200 text-right font-mono tabular-nums">
+          {tooltip.open.toFixed(2)}
+        </span>
+        <span className="text-gray-500">High</span>
+        <span className="text-emerald-400 text-right font-mono tabular-nums">
+          {tooltip.high.toFixed(2)}
+        </span>
+        <span className="text-gray-500">Low</span>
+        <span className="text-red-400 text-right font-mono tabular-nums">
+          {tooltip.low.toFixed(2)}
+        </span>
+        <span className="text-gray-500">Close</span>
+        <span className={`text-right font-mono tabular-nums font-semibold ${tooltip.isUp ? 'text-emerald-400' : 'text-red-400'}`}>
+          {tooltip.close.toFixed(2)}
+        </span>
+        {tooltip.volume > 0 && (
+          <>
+            <span className="text-gray-500">Vol</span>
+            <span className="text-gray-300 text-right font-mono tabular-nums">
+              {fmtVol(tooltip.volume)}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function calcEma(values: number[], period: number): number[] {
@@ -221,6 +284,8 @@ export function CandlestickChart({
           close,
           volume: candle.v,
           isUp:   close >= open,
+          x:      Math.round(param.point.x),
+          y:      Math.round(param.point.y),
         });
       });
 
@@ -337,43 +402,9 @@ export function CandlestickChart({
         <div className={`relative ${expanded ? 'flex-1' : ''}`}>
           <div ref={containerRef} className="w-full h-full" />
 
-          {/* OHLCV hover tooltip */}
+          {/* OHLCV hover tooltip — floats next to the crosshair */}
           {tooltip && (
-            <div className="absolute top-3 left-3 pointer-events-none z-10 bg-gray-900/95 border border-gray-700 rounded-lg shadow-2xl px-3.5 py-2.5 text-xs backdrop-blur-sm">
-              <div className="text-gray-400 font-medium mb-2 text-[11px] tracking-wide">
-                {tooltip.date}
-              </div>
-              <div className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1">
-                <span className="text-gray-500">Open</span>
-                <span className="text-gray-200 text-right font-mono tabular-nums">
-                  {tooltip.open.toFixed(2)}
-                </span>
-                <span className="text-gray-500">High</span>
-                <span className="text-emerald-400 text-right font-mono tabular-nums">
-                  {tooltip.high.toFixed(2)}
-                </span>
-                <span className="text-gray-500">Low</span>
-                <span className="text-red-400 text-right font-mono tabular-nums">
-                  {tooltip.low.toFixed(2)}
-                </span>
-                <span className="text-gray-500">Close</span>
-                <span
-                  className={`text-right font-mono tabular-nums font-semibold ${
-                    tooltip.isUp ? 'text-emerald-400' : 'text-red-400'
-                  }`}
-                >
-                  {tooltip.close.toFixed(2)}
-                </span>
-                {tooltip.volume > 0 && (
-                  <>
-                    <span className="text-gray-500">Volume</span>
-                    <span className="text-gray-300 text-right font-mono tabular-nums">
-                      {fmtVol(tooltip.volume)}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
+            <TooltipOverlay tooltip={tooltip} containerRef={containerRef} />
           )}
         </div>
       </div>
