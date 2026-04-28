@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createBrowserSupabaseClient as createClient } from '@/lib/supabaseBrowser';
+import { getDeviceId } from '@/lib/deviceId';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { SignalBadge } from './SignalBadge';
@@ -12,7 +14,7 @@ import type { AnalysisResult } from '@/lib/analysis';
 import type { WatchlistItem } from '@/lib/watchlist';
 import { StockHeadline } from '@/components/trading/StockHeadline';
 
-const STORAGE_KEY = 'swingmonitor_watchlist';
+const LS_KEY = 'swingmonitor_watchlist'; // legacy localStorage key (for one-time migration)
 
 type StockData = AnalysisResult & {
   name: string;
@@ -116,41 +118,87 @@ function toEntry(item: WatchlistItem): WatchlistEntry {
 }
 
 export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
-  const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
-  const [dataMap, setDataMap] = useState<Record<string, StockData>>({});
-  const [loadMap, setLoadMap] = useState<Record<string, LoadState>>({});
-  const [input, setInput] = useState('');
-  const [adding, setAdding] = useState(false);
-  const [addError, setAddError] = useState('');
+  const [watchlist, setWatchlist]     = useState<WatchlistEntry[]>([]);
+  const [dataMap, setDataMap]         = useState<Record<string, StockData>>({});
+  const [loadMap, setLoadMap]         = useState<Record<string, LoadState>>({});
+  const [input, setInput]             = useState('');
+  const [adding, setAdding]           = useState(false);
+  const [addError, setAddError]       = useState('');
   const [refreshingAll, setRefreshingAll] = useState(false);
+  const [dbLoading, setDbLoading]     = useState(true); // true while fetching from Supabase
+  const seeded = useRef(false);
 
-  // Helper — write the list to localStorage immediately (synchronous, no effect lag)
-  function persist(list: WatchlistEntry[]) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch { /* ignore */ }
-  }
-
-  // Load saved watchlist from localStorage — runs ONCE on mount only.
-  // Using [] dependency so a new `defaults` array reference on each server render
-  // never accidentally re-runs this and wipes user-added tickers.
+  // ── Load from Supabase on mount ────────────────────────────────────────────
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: WatchlistEntry[] = JSON.parse(saved);
-        // Only use saved data if it's a non-empty valid array
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setWatchlist(parsed);
-          return; // ← early return keeps localStorage untouched
-        }
+    if (seeded.current) return;
+    seeded.current = true;
+
+    const deviceId = getDeviceId();
+    const sb = createClient();
+
+    async function load() {
+      const { data, error } = await sb
+        .from('watchlist')
+        .select('*')
+        .eq('device_id', deviceId)
+        .order('added_at', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        // Supabase has saved data — use it
+        setWatchlist(data.map((r) => ({
+          symbol:  r.symbol,
+          name:    r.name,
+          type:    r.type as 'stock' | 'etf',
+          warning: r.warning ?? undefined,
+        })));
+        setDbLoading(false);
+        return;
       }
-    } catch {
-      // JSON was corrupted — fall through to seed with defaults below
+
+      // No Supabase data — check for legacy localStorage data to migrate
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (raw) {
+          const parsed: WatchlistEntry[] = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Migrate to Supabase
+            await sb.from('watchlist').upsert(
+              parsed.map((e, i) => ({
+                device_id: deviceId,
+                symbol:    e.symbol,
+                name:      e.name,
+                type:      e.type,
+                warning:   e.warning ?? null,
+                added_at:  new Date(Date.now() + i * 1000).toISOString(),
+              })),
+              { onConflict: 'device_id,symbol' },
+            );
+            localStorage.removeItem(LS_KEY); // clean up legacy key
+            setWatchlist(parsed);
+            setDbLoading(false);
+            return;
+          }
+        }
+      } catch { /* ignore corrupted localStorage */ }
+
+      // First ever visit — seed defaults into Supabase
+      const initial = defaults.map(toEntry);
+      await sb.from('watchlist').upsert(
+        initial.map((e, i) => ({
+          device_id: deviceId,
+          symbol:    e.symbol,
+          name:      e.name,
+          type:      e.type,
+          warning:   e.warning ?? null,
+          added_at:  new Date(Date.now() + i * 1000).toISOString(),
+        })),
+        { onConflict: 'device_id,symbol' },
+      );
+      setWatchlist(initial);
+      setDbLoading(false);
     }
 
-    // First visit OR empty/corrupted storage → seed with defaults
-    const initial = defaults.map(toEntry);
-    setWatchlist(initial);
-    persist(initial);
+    load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch analysis for a single symbol
@@ -205,13 +253,19 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
       }
 
       const newEntry: WatchlistEntry = { symbol, name: data.name ?? symbol, type: 'stock' };
+
+      // Guard: don't add if already present
       setWatchlist((prev) => {
-        // Guard: don't add if already present (race condition safety)
         if (prev.some((w) => w.symbol === symbol)) return prev;
-        const updated = [...prev, newEntry];
-        persist(updated);
-        return updated;
+        return [...prev, newEntry];
       });
+
+      // Persist to Supabase
+      await createClient().from('watchlist').upsert(
+        { device_id: getDeviceId(), symbol: newEntry.symbol, name: newEntry.name, type: newEntry.type },
+        { onConflict: 'device_id,symbol' },
+      );
+
       setDataMap((prev) => ({ ...prev, [symbol]: data }));
       setLoadMap((prev) => ({ ...prev, [symbol]: 'done' }));
       setInput('');
@@ -221,12 +275,15 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
     setAdding(false);
   }
 
-  function handleRemove(symbol: string) {
-    setWatchlist((prev) => {
-      const updated = prev.filter((w) => w.symbol !== symbol);
-      persist(updated); // save immediately
-      return updated;
-    });
+  async function handleRemove(symbol: string) {
+    // Remove from Supabase
+    await createClient()
+      .from('watchlist')
+      .delete()
+      .eq('device_id', getDeviceId())
+      .eq('symbol', symbol);
+
+    setWatchlist((prev) => prev.filter((w) => w.symbol !== symbol));
     setDataMap((prev) => { const n = { ...prev }; delete n[symbol]; return n; });
     setLoadMap((prev) => { const n = { ...prev }; delete n[symbol]; return n; });
   }
@@ -337,7 +394,17 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
         })}
       </div>
 
-      {watchlist.length === 0 && (
+      {dbLoading && (
+        <div className="flex items-center justify-center py-16 text-gray-500 text-sm gap-3">
+          <svg className="animate-spin h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+          Loading your watchlist…
+        </div>
+      )}
+
+      {!dbLoading && watchlist.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-700 p-12 text-center text-gray-500">
           <p className="text-sm">Your watchlist is empty.</p>
           <p className="text-xs mt-1">Add a ticker above to get started.</p>

@@ -50,7 +50,7 @@ export function PriceAlertMonitor() {
   }, [addToast]);
 
   const checkPrices = useCallback(async () => {
-    const alerts = getAlerts().filter((a) => a.active);
+    const alerts = (await getAlerts()).filter((a) => a.active);
     if (alerts.length === 0) return;
 
     // Only check alerts that haven't fully triggered yet

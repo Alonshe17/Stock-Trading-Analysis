@@ -15,12 +15,13 @@ export function PriceAlertBell({ symbol, name, currentPrice }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const a = getAlert(symbol);
-    setAlert(a);
-    if (a) {
-      setHigh(a.highTarget?.toString() ?? '');
-      setLow(a.lowTarget?.toString() ?? '');
-    }
+    getAlert(symbol).then((a) => {
+      setAlert(a);
+      if (a) {
+        setHigh(a.highTarget?.toString() ?? '');
+        setLow(a.lowTarget?.toString() ?? '');
+      }
+    });
   }, [symbol, open]);
 
   // Close on outside click/touch (desktop dropdown)
@@ -42,13 +43,13 @@ export function PriceAlertBell({ symbol, name, currentPrice }: Props) {
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  function handleSave() {
+  async function handleSave() {
     const highNum = parseFloat(high) || null;
-    const lowNum = parseFloat(low) || null;
+    const lowNum  = parseFloat(low)  || null;
     if (!highNum && !lowNum) return;
-    const ok = upsertAlert({ symbol, name, highTarget: highNum, lowTarget: lowNum });
+    const ok = await upsertAlert({ symbol, name, highTarget: highNum, lowTarget: lowNum });
     if (ok) {
-      setAlert(getAlert(symbol));
+      setAlert(await getAlert(symbol));
       setSaveError(false);
       setSaved(true);
       setTimeout(() => { setSaved(false); setOpen(false); }, 1200);
@@ -57,8 +58,8 @@ export function PriceAlertBell({ symbol, name, currentPrice }: Props) {
     }
   }
 
-  function handleRemove() {
-    removeAlert(symbol);
+  async function handleRemove() {
+    await removeAlert(symbol);
     setAlert(null);
     setHigh('');
     setLow('');
@@ -165,7 +166,7 @@ export function PriceAlertBell({ symbol, name, currentPrice }: Props) {
       </div>
 
       <p className="text-xs text-gray-600 mt-3">
-        Alerts are saved in your browser. Keep this tab open for live monitoring.
+        Alerts are saved to the cloud — available on any device.
       </p>
     </div>
   );
