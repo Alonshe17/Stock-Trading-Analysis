@@ -281,7 +281,7 @@ export default function ScannerPage() {
                 How It Works — Today&apos;s Buying Volume vs Yesterday
               </p>
               <p className="text-xs text-gray-500 leading-relaxed mb-3">
-                Finds stocks where <strong className="text-gray-300">volume jumped significantly</strong> between two dates — sorted by the biggest spike first.
+                Scans <strong className="text-gray-300">all ~6,000 US-listed stocks</strong> for volume jumps between two dates — sorted by biggest spike first.
                 Price change is shown as context but <strong className="text-gray-300">does not affect ranking</strong>.
                 Volume spikes often appear <em>before</em> the price move, so this scanner is designed to catch them early.
               </p>
@@ -372,12 +372,12 @@ export default function ScannerPage() {
             </div>
 
             {dbvLoading && <ScanningState
-              text="Scanning ~1,200 US stocks for buying volume jumps vs yesterday…"
-              note="Computes buying pressure per bar using closing price location. Takes 30–60 seconds."
+              text="Scanning all ~6,000 US stocks for volume jumps…"
+              note="Fetches quote data for the full universe, then checks OHLCV bars for every qualifying stock. Takes 60–90 seconds."
             />}
             {dbvError && <ErrorBanner msg={dbvError} />}
             {dbvResults && !dbvLoading && <DayBuyVolumeResults results={dbvResults} />}
-            {!dbvResults && !dbvLoading && <EmptyState label="Scan Buying Volume" note="Finds stocks where today's buying volume is 2× or more than yesterday's — fresh institutional demand." />}
+            {!dbvResults && !dbvLoading && <EmptyState label="Scan All US Stocks" note="Scans ~6,000 US stocks for volume jumps between the two dates. Sorted by biggest spike first." />}
           </>
         )}
 

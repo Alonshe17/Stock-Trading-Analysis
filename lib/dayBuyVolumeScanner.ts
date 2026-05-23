@@ -270,56 +270,46 @@ export async function runDayBuyVolumeScanner(
     if (i + BATCH * CONC < universe.length) await new Promise(r => setTimeout(r, 200));
   }
 
-  // Phase 3: select candidates for OHLCV fetching
+  // Phase 3: build candidate list for OHLCV fetching — full universe, no slice cap.
   //
-  // Custom dates:
-  //   Step A — top 500 from v7/quote results sorted by avgVol3m desc.
-  //   Step B — every symbol in fallbackUniverse (US_STOCKS) not already in A.
-  //            This guarantees curated symbols like IONQ are always OHLCV-checked
-  //            even if Yahoo Finance's v7/quote silently drops them (it returns
-  //            an "Unauthorized" JSON error for certain tickers in some batches).
-  //            Placeholder quote data is used; real price/vol is validated against
-  //            actual bar data in Phase 4 (endBar.close >= 10, vol >= 200K).
-  //
-  // Default (today vs previous day): sort by avgVol10d/avgVol3m ratio → top 200.
+  // ALL symbols returned by v7/quote that pass price/vol filters are included.
+  // On top of that, every fallbackUniverse (US_STOCKS) symbol not captured by
+  // v7/quote is guaranteed to be checked (fixes stocks like IONQ that v7/quote
+  // silently drops).  Placeholder quote data is used for those; actual
+  // price/vol is validated against real bar data in Phase 4.
 
-  let candidates: QuickQuote[];
+  const fromQuote: QuickQuote[] = customDates
+    ? allQuotes.filter(q => q.avgVol3m > 0)                     // all qualifying — no cap
+    : allQuotes                                                   // today vs prev day:
+        .filter(q => q.avgVol3m > 0 && q.avgVol10d > 0)         //   pre-rank by recent activity
+        .map(q => ({ ...q, recentRatio: q.avgVol10d / q.avgVol3m }))
+        .sort((a, b) =>
+          (b as typeof b & { recentRatio: number }).recentRatio -
+          (a as typeof a & { recentRatio: number }).recentRatio
+        );
 
-  if (customDates) {
-    const fromQuote = allQuotes
-      .filter(q => q.avgVol3m > 0)
-      .sort((a, b) => b.avgVol3m - a.avgVol3m)
-      .slice(0, 500);
+  const coveredSet = new Set(fromQuote.map(q => q.symbol));
 
-    const coveredSet = new Set(fromQuote.map(q => q.symbol));
+  // Guaranteed path: curated US_STOCKS symbols v7/quote may have missed
+  const guaranteed: QuickQuote[] = fallbackUniverse
+    .filter(sym => !coveredSet.has(sym))
+    .map(sym => ({
+      symbol:     sym,
+      name:       sym,
+      price:      50,        // placeholder
+      changePct:  0,
+      volume:     0,
+      avgVol10d:  1_000_000,
+      avgVol3m:   1_000_000,
+      marketCapM: 0,
+    }));
 
-    const guaranteed: QuickQuote[] = fallbackUniverse
-      .filter(sym => !coveredSet.has(sym))
-      .map(sym => ({
-        symbol:     sym,
-        name:       sym,
-        price:      50,          // placeholder — bar data determines actual price
-        changePct:  0,
-        volume:     0,
-        avgVol10d:  1_000_000,   // placeholder — bar data filters in Phase 4
-        avgVol3m:   1_000_000,
-        marketCapM: 0,
-      }));
+  const candidates: QuickQuote[] = [...fromQuote, ...guaranteed];
 
-    candidates = [...fromQuote, ...guaranteed];
-  } else {
-    candidates = allQuotes
-      .filter(q => q.avgVol3m > 0 && q.avgVol10d > 0)
-      .map(q => ({ ...q, recentRatio: q.avgVol10d / q.avgVol3m }))
-      .sort((a, b) =>
-        (b as typeof b & { recentRatio: number }).recentRatio -
-        (a as typeof a & { recentRatio: number }).recentRatio
-      )
-      .slice(0, 200);
-  }
-
-  // Phase 4: fetch OHLCV bars and compute buying volume for the two dates
-  const CANDLE_CONC = 10;
+  // Phase 4: fetch OHLCV bars and compute buying volume for the two dates.
+  // Higher concurrency (20) to handle the full ~3,000+ candidate set within
+  // Vercel's 120 s function limit.
+  const CANDLE_CONC = 20;
   const results: DayBuyVolumeResult[] = [];
 
   for (let i = 0; i < candidates.length; i += CANDLE_CONC) {
@@ -403,7 +393,7 @@ export async function runDayBuyVolumeScanner(
       });
     }
 
-    if (i + CANDLE_CONC < candidates.length) await new Promise(r => setTimeout(r, 120));
+    if (i + CANDLE_CONC < candidates.length) await new Promise(r => setTimeout(r, 80));
   }
 
   // Sort purely by volume jump magnitude — biggest spike first.

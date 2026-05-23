@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const endDate   = searchParams.get('endDate')   ?? undefined;  // YYYY-MM-DD
     const startDate = searchParams.get('startDate') ?? undefined;  // YYYY-MM-DD
 
-    const results = await runDayBuyVolumeScanner(US_STOCKS, 50, endDate, startDate);
+    const results = await runDayBuyVolumeScanner(US_STOCKS, 100, endDate, startDate);
     return NextResponse.json(results);
   } catch (err) {
     console.error('[daybuyvolume] scan error:', err);
