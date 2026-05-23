@@ -100,6 +100,30 @@ const US_MIDCAP_EXTENDED: string[] = [
   'NVAX','MRNA','BNTX','CVAC','OCGN','VXUS','EYES','GOVX',
   'ASTR','SPCE','ASTS','MNTS','SATL','BKSY','MDA','GHC',
   'PTON','BYND','HOOD','GREE','SPRT',
+
+  // ── Quantum computing ─────────────────────────────────────────────────────
+  'IONQ','QBTS','RGTI','QUBT','QTUM','ARQQ','QMCO',
+
+  // ── AI / Machine Learning / Robotics ──────────────────────────────────────
+  'SOUN','BBAI','GFAI','AITX','TRNX','CWAN','BITO',
+  'ALAB','NVTS','SMCI','AI','BBAI','PRCT','UPST','LMND',
+  'GENI','PATH','AISP','ABDE','AMBA',
+
+  // ── Crypto-adjacent / Bitcoin miners ─────────────────────────────────────
+  'BITF','BTBT','BTDR','BTCS','HIVE','BTCM','MIGI',
+  'MSTR','COIN','HOOD',
+
+  // ── Space / Defense tech ─────────────────────────────────────────────────
+  'RKLB','ASTS','SPCE','LUNR','KTOS','BKSY','PL',
+  'GNSS','SPIR','RDW','SAT',
+
+  // ── EV / Clean energy ────────────────────────────────────────────────────
+  'RIVN','LCID','GOEV','FSR','WKHS','RIDE','NKLA','SOLO',
+  'EVGO','BLNK','CHPT','FFIE','MULN','PTRA','ZEV',
+
+  // ── Biotech / Gene editing ────────────────────────────────────────────────
+  'BEAM','CRSP','NTLA','EDIT','VERV','SGMO','BNGO','PACB',
+  'TWST','RXRX','SEER','MYPS','CLVT',
 ];
 
 /** Deduplicated combined universe (~1,200 US stocks). */

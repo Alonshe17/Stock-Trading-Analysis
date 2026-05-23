@@ -270,25 +270,51 @@ export async function runDayBuyVolumeScanner(
 
   // Phase 3: select candidates for OHLCV fetching
   //
-  // Custom dates: sort by avgVol3m desc (most liquid stocks first) → top 400.
-  //   We use raw liquidity because the current avgVol10d/avgVol3m ratio reflects
-  //   TODAY's activity, not what happened on the chosen historical dates. A stock
-  //   like IONQ that spiked weeks ago but has since gone quiet would score poorly
-  //   on the ratio even though it's exactly what we're looking for.
+  // Custom dates:
+  //   Step A — top 500 from v7/quote results sorted by avgVol3m desc.
+  //   Step B — every symbol in fallbackUniverse (US_STOCKS) not already in A.
+  //            This guarantees curated symbols like IONQ are always OHLCV-checked
+  //            even if Yahoo Finance's v7/quote silently drops them (it returns
+  //            an "Unauthorized" JSON error for certain tickers in some batches).
+  //            Placeholder quote data is used; real price/vol is validated against
+  //            actual bar data in Phase 4 (endBar.close >= 10, vol >= 200K).
   //
   // Default (today vs previous day): sort by avgVol10d/avgVol3m ratio → top 200.
-  //   This efficiently surfaces stocks with elevated RECENT volume.
 
-  const candidates = customDates
-    ? allQuotes
-        .filter(q => q.avgVol3m > 0)
-        .sort((a, b) => b.avgVol3m - a.avgVol3m)
-        .slice(0, 600)
-    : allQuotes
-        .filter(q => q.avgVol3m > 0 && q.avgVol10d > 0)
-        .map(q => ({ ...q, recentRatio: q.avgVol10d / q.avgVol3m }))
-        .sort((a, b) => b.recentRatio - a.recentRatio)
-        .slice(0, 200);
+  let candidates: QuickQuote[];
+
+  if (customDates) {
+    const fromQuote = allQuotes
+      .filter(q => q.avgVol3m > 0)
+      .sort((a, b) => b.avgVol3m - a.avgVol3m)
+      .slice(0, 500);
+
+    const coveredSet = new Set(fromQuote.map(q => q.symbol));
+
+    const guaranteed: QuickQuote[] = fallbackUniverse
+      .filter(sym => !coveredSet.has(sym))
+      .map(sym => ({
+        symbol:     sym,
+        name:       sym,
+        price:      50,          // placeholder — bar data determines actual price
+        changePct:  0,
+        volume:     0,
+        avgVol10d:  1_000_000,   // placeholder — bar data filters in Phase 4
+        avgVol3m:   1_000_000,
+        marketCapM: 0,
+      }));
+
+    candidates = [...fromQuote, ...guaranteed];
+  } else {
+    candidates = allQuotes
+      .filter(q => q.avgVol3m > 0 && q.avgVol10d > 0)
+      .map(q => ({ ...q, recentRatio: q.avgVol10d / q.avgVol3m }))
+      .sort((a, b) =>
+        (b as typeof b & { recentRatio: number }).recentRatio -
+        (a as typeof a & { recentRatio: number }).recentRatio
+      )
+      .slice(0, 200);
+  }
 
   // Phase 4: fetch OHLCV bars and compute buying volume for the two dates
   const CANDLE_CONC = 10;
@@ -329,15 +355,25 @@ export async function runDayBuyVolumeScanner(
       const buyVolRatio   = todayBuyVol / prevBuyVol;
       const totalVolRatio = startBar.volume > 0 ? endBar.volume / startBar.volume : 0;
 
+      // Price floor — guaranteed symbols bypass v7/quote so check actual bar price
+      if (endBar.close < 10) continue;
+
       // Accept if either buying volume OR total volume jumped ≥ 2×.
       // This catches stocks like IONQ where total volume explodes even if the
       // close-price-location model shows mixed buy/sell activity.
       if (buyVolRatio < 2 && totalVolRatio < 2) continue;
       if (endBar.volume < 200_000) continue;
 
-      const signal   = classify(buyVolRatio, totalVolRatio, changePct);
-      const score    = calcScore(signal, buyVolRatio, totalVolRatio, changePct);
-      const volRatio = qq.avgVol3m > 0 ? endBar.volume / qq.avgVol3m : 0;
+      const signal = classify(buyVolRatio, totalVolRatio, changePct);
+      const score  = calcScore(signal, buyVolRatio, totalVolRatio, changePct);
+
+      // For guaranteed symbols (placeholder avgVol3m = 1_000_000), estimate
+      // avgVol3m from the bars we already fetched; otherwise use the quote value.
+      const isGuaranteed = qq.avgVol3m === 1_000_000 && qq.marketCapM === 0;
+      const avgVol3mEst  = isGuaranteed
+        ? bars.reduce((s, b) => s + b.volume, 0) / Math.max(bars.length, 1)
+        : qq.avgVol3m;
+      const volRatio = avgVol3mEst > 0 ? endBar.volume / avgVol3mEst : 0;
 
       results.push({
         symbol:         qq.symbol,
@@ -345,7 +381,7 @@ export async function runDayBuyVolumeScanner(
         price:          endBar.close,
         changePct,
         volume:         endBar.volume,
-        avgVolume:      qq.avgVol3m,
+        avgVolume:      avgVol3mEst,
         volRatio,
         endDateLabel:   endBar.dateLabel,
         startDateLabel: startBar.dateLabel,
