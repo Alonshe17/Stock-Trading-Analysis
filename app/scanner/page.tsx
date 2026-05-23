@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { ScannerResults } from '@/components/trading/ScannerResults';
 import { VolumeScannerResults } from '@/components/trading/VolumeScannerResults';
 import { PreBreakoutResults } from '@/components/trading/PreBreakoutResults';
+import { WeeklyVolumeResults } from '@/components/trading/WeeklyVolumeResults';
 import { TradingNav } from '@/components/trading/TradingNav';
 import type { ScanResult } from '@/lib/intraday';
 import type { VolumeScanResult } from '@/lib/volumeScanner';
 import type { PreBreakoutResult } from '@/lib/preBreakout';
+import type { WeeklyVolumeResult } from '@/lib/weeklyVolumeScanner';
 
-type Tab = 'momentum' | 'volume' | 'prebreakout';
+type Tab = 'momentum' | 'volume' | 'prebreakout' | 'weekly';
 
 export default function ScannerPage() {
   const [tab, setTab] = useState<Tab>('prebreakout');
@@ -32,6 +34,12 @@ export default function ScannerPage() {
   const [pbLoading,   setPbLoading]   = useState(false);
   const [pbError,     setPbError]     = useState('');
   const [pbScannedAt, setPbScannedAt] = useState<Date | null>(null);
+
+  // ── Weekly Volume scanner state ──
+  const [wvResults,   setWvResults]   = useState<WeeklyVolumeResult[] | null>(null);
+  const [wvLoading,   setWvLoading]   = useState(false);
+  const [wvError,     setWvError]     = useState('');
+  const [wvScannedAt, setWvScannedAt] = useState<Date | null>(null);
 
   async function runMomentumScan() {
     setMomLoading(true); setMomError('');
@@ -65,6 +73,22 @@ export default function ScannerPage() {
     }
   }
 
+  async function runWeeklyScan() {
+    setWvLoading(true); setWvError('');
+    try {
+      const res = await fetch('/api/scanner/weeklyvolume');
+      if (!res.ok) throw new Error('Scan failed');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setWvResults(data);
+      setWvScannedAt(new Date());
+    } catch (e) {
+      setWvError(e instanceof Error ? e.message : 'Scan failed — try again');
+    } finally {
+      setWvLoading(false);
+    }
+  }
+
   async function runPreBreakoutScan() {
     setPbLoading(true); setPbError('');
     try {
@@ -90,16 +114,19 @@ export default function ScannerPage() {
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">Stock Scanner</h1>
             <p className="text-gray-400 text-sm">
-              Three scan modes: pre-breakout setup detection, institutional price-volume analysis, and intraday momentum.
+              Four scan modes: pre-breakout setups, weekly volume surges across all US stocks, institutional price-volume analysis, and intraday momentum.
             </p>
           </div>
           <TradingNav active="/scanner" />
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 mb-6 w-fit">
+        <div className="flex flex-wrap gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 mb-6 w-fit">
           <TabButton active={tab === 'prebreakout'} onClick={() => setTab('prebreakout')}>
             🚀 Pre-Breakout Setup
+          </TabButton>
+          <TabButton active={tab === 'weekly'} onClick={() => setTab('weekly')}>
+            🔥 Weekly Volume
           </TabButton>
           <TabButton active={tab === 'volume'} onClick={() => setTab('volume')}>
             📊 Volume Analysis
@@ -203,6 +230,86 @@ export default function ScannerPage() {
             {pbError && <ErrorBanner msg={pbError} />}
             {pbResults && !pbLoading && <PreBreakoutResults results={pbResults} />}
             {!pbResults && !pbLoading && <EmptyState label="Run Pre-Breakout Scan" note="Finds stocks in quiet accumulation bases before institutional breakouts." />}
+          </>
+        )}
+
+        {/* ── WEEKLY VOLUME TAB ── */}
+        {tab === 'weekly' && (
+          <>
+            {/* Explainer */}
+            <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4 mb-5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                How It Works — Weekly Price-Volume Analysis
+              </p>
+              <p className="text-xs text-gray-500 leading-relaxed mb-3">
+                Scans all ~6,000–8,000 US-listed stocks for unusual volume activity over the <strong className="text-gray-300">past 5 trading days</strong>.
+                Compares weekly volume to each stock&apos;s 3-month average to find outliers — breakouts, distribution, and quiet accumulation.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {[
+                  { icon: '🚀', sig: 'Breakout',     desc: 'Price up 5%+ and weekly volume 2× or more above baseline. Strongest signal.',     bull: true },
+                  { icon: '↑',  sig: 'Surge Up',     desc: 'Price up 2%+ with elevated volume (1.5×+). Institutional buying accelerating.',    bull: true },
+                  { icon: '🤫', sig: 'Accumulation', desc: 'Price flat (±2%) but volume elevated. Institutions buying quietly before a move.', bull: true },
+                  { icon: '↓',  sig: 'Surge Down',   desc: 'Price down 2%+ with elevated volume. Distribution — institutions selling.',        bull: false },
+                  { icon: '💥', sig: 'Breakdown',    desc: 'Price down 5%+ with 2× volume. Heavy institutional selling / stop-loss cascade.', bull: false },
+                ].map(s => (
+                  <div key={s.sig} className="rounded-lg bg-gray-900 border border-gray-800 p-3">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-base">{s.icon}</span>
+                      <span className="text-xs font-bold text-gray-300">{s.sig}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 leading-relaxed">{s.desc}</p>
+                    <p className={`text-[10px] mt-1.5 font-semibold ${s.bull ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {s.bull ? '✓ Bullish signal' : '✗ Bearish signal'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Volume ratio legend */}
+            <div className="flex flex-wrap gap-2 mb-5">
+              {[
+                { label: '3×+ Volume',   color: 'bg-orange-500/20 text-orange-300 border-orange-500/40', note: 'Extreme surge' },
+                { label: '2–3× Volume',  color: 'bg-amber-500/20 text-amber-300 border-amber-500/40',   note: 'Very elevated' },
+                { label: '1.5–2× Volume',color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40',note: 'Elevated'      },
+                { label: '< 1.5×',       color: 'bg-gray-800 text-gray-500 border-gray-700/40',         note: 'Normal range'  },
+              ].map(s => (
+                <span key={s.label} className={`px-3 py-1.5 rounded-full border text-[11px] font-semibold ${s.color}`}>
+                  {s.label} <span className="opacity-60 font-normal">· {s.note}</span>
+                </span>
+              ))}
+            </div>
+
+            {/* Run button */}
+            <div className="flex items-center gap-4 mb-5">
+              <button
+                onClick={runWeeklyScan}
+                disabled={wvLoading}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 text-sm font-semibold text-white transition"
+              >
+                {wvLoading ? (
+                  <><Spinner /> Scanning all US stocks (~60–90 sec)…</>
+                ) : (
+                  <><SearchIcon /> Scan All US Stocks</>
+                )}
+              </button>
+
+              {wvScannedAt && !wvLoading && (
+                <span className="text-xs text-gray-500">
+                  Last scanned {wvScannedAt.toLocaleTimeString()}
+                  {wvResults && <span className="ml-2 text-gray-400">· {wvResults.length} results</span>}
+                </span>
+              )}
+            </div>
+
+            {wvLoading && <ScanningState
+              text="Fetching quote data for ~6,000 US stocks, then computing 5-day volume metrics…"
+              note="Compares each stock's weekly volume to its 3-month baseline. Takes 60–90 seconds."
+            />}
+            {wvError && <ErrorBanner msg={wvError} />}
+            {wvResults && !wvLoading && <WeeklyVolumeResults results={wvResults} />}
+            {!wvResults && !wvLoading && <EmptyState label="Scan All US Stocks" note="Covers ~6,000–8,000 US-listed stocks. Finds breakouts, surges, and quiet accumulation over the past week." />}
           </>
         )}
 
