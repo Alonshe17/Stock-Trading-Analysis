@@ -20,10 +20,9 @@ function fmt(n: number) {
 const SIGNAL_META: Record<DayBuySignal, {
   label: string; badge: string; dot: string; row: string;
 }> = {
-  'strong-buy':   { label: '🔥 Strong Buy',    badge: 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50', dot: 'bg-emerald-400',  row: 'hover:bg-emerald-950/30' },
-  'buy-surge':    { label: '↑ Buy Surge',       badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40', dot: 'bg-emerald-600',  row: 'hover:bg-emerald-950/20' },
-  'buy-reversal': { label: '🔄 Buy Reversal',   badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40',          dot: 'bg-blue-500',    row: 'hover:bg-blue-950/20'    },
-  'vol-surge':    { label: '📊 Vol Surge',       badge: 'bg-amber-900/30 text-amber-400 border-amber-700/40',       dot: 'bg-amber-500',   row: 'hover:bg-amber-950/20'   },
+  'strong-buy': { label: '🔥 Strong Buy Vol',  badge: 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50', dot: 'bg-emerald-400', row: 'hover:bg-emerald-950/30' },
+  'buy-surge':  { label: '↑ Buy Vol Surge',    badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40', dot: 'bg-emerald-600', row: 'hover:bg-emerald-950/20' },
+  'vol-surge':  { label: '📊 Vol Surge',        badge: 'bg-amber-900/30 text-amber-400 border-amber-700/40',       dot: 'bg-amber-500',  row: 'hover:bg-amber-950/20'   },
 };
 
 // ── Summary bar ───────────────────────────────────────────────────────────────
@@ -37,10 +36,9 @@ function SummaryBar({ results }: { results: DayBuyVolumeResult[] }) {
   const compLabel = first ? `${first.endDateLabel} vs ${first.startDateLabel}` : '';
 
   const items: { signal: DayBuySignal; label: string; badge: string }[] = [
-    { signal: 'strong-buy',   label: '🔥 Strong Buy',   badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
-    { signal: 'buy-surge',    label: '↑ Buy Surge',     badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40' },
-    { signal: 'buy-reversal', label: '🔄 Buy Reversal',  badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40'         },
-    { signal: 'vol-surge',    label: '📊 Vol Surge',     badge: 'bg-amber-900/30 text-amber-400 border-amber-700/40'      },
+    { signal: 'strong-buy', label: '🔥 Strong Buy Vol', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+    { signal: 'buy-surge',  label: '↑ Buy Vol Surge',   badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40' },
+    { signal: 'vol-surge',  label: '📊 Vol Surge',       badge: 'bg-amber-900/30 text-amber-400 border-amber-700/40'      },
   ];
 
   return (
@@ -244,10 +242,13 @@ export function DayBuyVolumeResults({ results }: { results: DayBuyVolumeResult[]
               <tr className="border-b border-gray-800 bg-gray-900/60 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                 <th className="px-4 py-2.5 text-left">Symbol</th>
                 <th className="px-4 py-2.5 text-right">Price</th>
-                <th className="px-4 py-2.5 text-right">Change</th>
-                <th className="px-4 py-2.5 text-right">Vol Today</th>
-                <th className="px-4 py-2.5 text-right">Vol Ratio</th>
-                <th className="px-4 py-2.5 text-right">Buy Vol Ratio</th>
+                <th className="px-4 py-2.5 text-right">
+                  <span className="text-gray-500">Chg%</span>
+                  <div className="text-[9px] font-normal text-gray-600 normal-case">info only</div>
+                </th>
+                <th className="px-4 py-2.5 text-right">Vol (end)</th>
+                <th className="px-4 py-2.5 text-right">vs Avg</th>
+                <th className="px-4 py-2.5 text-right">Vol Jump</th>
                 <th className="px-4 py-2.5 text-right">Buy Pressure</th>
                 <th className="px-4 py-2.5 text-center">Signal</th>
                 <th className="px-4 py-2.5 text-center">Score</th>
@@ -312,32 +313,24 @@ export function DayBuyVolumeResults({ results }: { results: DayBuyVolumeResult[]
                         </span>
                       </td>
 
-                      {/* Buy volume ratio (today buy / yesterday buy) — KEY METRIC.
-                          For vol-surge show total vol ratio instead since buy vol ratio may be < 2 */}
+                      {/* Vol Jump — shows whichever metric is higher: total vol ratio or buy vol ratio */}
                       <td className="px-4 py-3 text-right">
-                        {r.signal === 'vol-surge' ? (
-                          <div>
-                            <span className={`font-bold text-base ${
-                              r.totalVolRatio >= 5 ? 'text-orange-300' :
-                              r.totalVolRatio >= 3 ? 'text-orange-400' :
-                              'text-amber-400'
-                            }`}>
-                              {r.totalVolRatio.toFixed(1)}×
-                            </span>
-                            <div className="text-[9px] text-gray-600">total vol</div>
-                          </div>
-                        ) : (
-                          <div>
-                            <span className={`font-bold text-base ${
-                              r.buyVolRatio >= 5 ? 'text-orange-300' :
-                              r.buyVolRatio >= 3 ? 'text-orange-400' :
-                              r.buyVolRatio >= 2 ? 'text-amber-400'  : 'text-gray-400'
-                            }`}>
-                              {r.buyVolRatio.toFixed(1)}×
-                            </span>
-                            <div className="text-[9px] text-gray-600">buy vol</div>
-                          </div>
-                        )}
+                        {(() => {
+                          const metric = Math.max(r.totalVolRatio, r.buyVolRatio);
+                          const isBuy  = r.buyVolRatio >= r.totalVolRatio;
+                          return (
+                            <div>
+                              <span className={`font-bold text-base ${
+                                metric >= 5 ? 'text-orange-300' :
+                                metric >= 3 ? 'text-orange-400' :
+                                'text-amber-400'
+                              }`}>
+                                {metric.toFixed(1)}×
+                              </span>
+                              <div className="text-[9px] text-gray-600">{isBuy ? 'buy vol' : 'total vol'}</div>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Buy pressure today (buy fraction as %) */}
@@ -383,10 +376,10 @@ export function DayBuyVolumeResults({ results }: { results: DayBuyVolumeResult[]
       </div>
 
       <p className="mt-3 text-xs text-gray-600">
-        Buying volume estimated via Closing Price Location: <span className="font-mono">buyVol = totalVol × (close − low) / (high − low)</span>.
-        Strong Buy / Buy Surge / Buy Reversal require estimated buy vol ≥ 2×.{' '}
-        <span className="text-amber-700">📊 Vol Surge</span> = total volume ≥ 2× even if buy/sell direction is mixed — catches stocks like IONQ where TradingView shows a big volume bar.
-        Price ≥ $10, avg vol ≥ 500K. Not financial advice.
+        Sorted by biggest volume jump — price change is shown for reference only, not used for ranking.
+        Buying volume estimated via Closing Price Location: <span className="font-mono">buyVol = totalVol × (close − low) / (high − low)</span>.{' '}
+        <span className="text-amber-700">📊 Vol Surge</span> = total volume jumped ≥ 2× (matches TradingView volume bars).
+        Price ≥ $10, min end-date volume 200K. Not financial advice.
       </p>
     </div>
   );

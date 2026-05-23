@@ -281,53 +281,44 @@ export default function ScannerPage() {
                 How It Works — Today&apos;s Buying Volume vs Yesterday
               </p>
               <p className="text-xs text-gray-500 leading-relaxed mb-3">
-                Finds stocks where <strong className="text-gray-300">buying volume today is significantly larger</strong> than buying volume yesterday.
-                Buying volume is estimated per bar using the <strong className="text-gray-300">Closing Price Location</strong> formula —
-                if a stock closes near its high, most of that bar&apos;s volume was buying; near the low means selling.
-                A big jump in buying volume signals fresh demand entering the stock.
+                Finds stocks where <strong className="text-gray-300">volume jumped significantly</strong> between two dates — sorted by the biggest spike first.
+                Price change is shown as context but <strong className="text-gray-300">does not affect ranking</strong>.
+                Volume spikes often appear <em>before</em> the price move, so this scanner is designed to catch them early.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <span className="text-base">🔥</span>
-                    <span className="text-xs font-bold text-gray-300">Strong Buy</span>
+                    <span className="text-xs font-bold text-gray-300">Strong Buy Vol</span>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">Est. buy volume 3×+ AND price up 2%+. Institutions aggressively accumulating.</p>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Estimated buying volume jumped 3×+. Close-price-location formula suggests strong buyers — regardless of whether price has moved yet.</p>
                   <p className="text-[10px] mt-1.5 font-semibold text-emerald-500">✓ Highest conviction</p>
                 </div>
                 <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <span className="text-base">↑</span>
-                    <span className="text-xs font-bold text-gray-300">Buy Surge</span>
+                    <span className="text-xs font-bold text-gray-300">Buy Vol Surge</span>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">Est. buy volume 2×+ AND price up. Fresh buying demand entering the stock.</p>
-                  <p className="text-[10px] mt-1.5 font-semibold text-emerald-500">✓ Bullish signal</p>
-                </div>
-                <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="text-base">🔄</span>
-                    <span className="text-xs font-bold text-gray-300">Buy Reversal</span>
-                  </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">Est. buy volume 2×+ but price flat/down. Demand absorbing supply — potential bottoming.</p>
-                  <p className="text-[10px] mt-1.5 font-semibold text-amber-500">⚠ Watch closely</p>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Estimated buying volume jumped 2×+. Solid demand increase — price direction irrelevant, watching for follow-through.</p>
+                  <p className="text-[10px] mt-1.5 font-semibold text-emerald-500">✓ Watch for follow-through</p>
                 </div>
                 <div className="rounded-lg bg-gray-900 border border-amber-900/30 p-3">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <span className="text-base">📊</span>
                     <span className="text-xs font-bold text-gray-300">Vol Surge</span>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">Total volume 2×+ the previous bar — same signal TradingView shows. Buy/sell direction is mixed; investigate further.</p>
-                  <p className="text-[10px] mt-1.5 font-semibold text-amber-500">⚠ Confirm direction</p>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Total volume jumped 2×+ — exactly what TradingView shows as a big volume bar. Buy/sell split unclear; check the bar details.</p>
+                  <p className="text-[10px] mt-1.5 font-semibold text-amber-500">⚠ Check direction</p>
                 </div>
               </div>
             </div>
 
             {/* How the formula works */}
             <div className="rounded-lg border border-gray-800 bg-gray-900/30 px-4 py-3 mb-5 text-xs text-gray-500">
-              <span className="text-gray-400 font-semibold">Formula: </span>
-              buyVol = volume × (close − low) / (high − low).
-              <span className="ml-2 text-gray-600">Example: close at high → 100% buying · close at low → 0% buying · close at midpoint → 50%.</span>
-              <span className="ml-2 text-gray-600">Buy Vol Ratio = today&apos;s buyVol ÷ yesterday&apos;s buyVol.</span>
+              <span className="text-gray-400 font-semibold">How it ranks: </span>
+              Sorted by biggest volume jump (end date ÷ start date), highest first.
+              <span className="ml-2 text-gray-600">Buy vol estimate: <span className="font-mono">vol × (close − low) / (high − low)</span> — close near high = mostly buying, near low = mostly selling.</span>
+              <span className="ml-2 text-gray-600">Price change shown as reference — not used for sorting.</span>
             </div>
 
             {/* Date range + Run button */}

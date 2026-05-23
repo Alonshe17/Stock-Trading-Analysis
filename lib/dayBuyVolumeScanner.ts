@@ -25,7 +25,7 @@ import { ensureYFSession, yfHeaders, withCrumb, yfSym } from './yfClient';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type DayBuySignal = 'strong-buy' | 'buy-surge' | 'buy-reversal' | 'vol-surge';
+export type DayBuySignal = 'strong-buy' | 'buy-surge' | 'vol-surge';
 
 export type DayBuyVolumeResult = {
   symbol:         string;
@@ -215,24 +215,26 @@ function calcBuyVol(bar: OHLCVBar): { buyVol: number; buyFrac: number } {
 
 // ── Signal + score ────────────────────────────────────────────────────────────
 
-function classify(buyVolRatio: number, totalVolRatio: number, changePct: number): DayBuySignal {
-  if (buyVolRatio >= 3 && changePct >= 2) return 'strong-buy';
-  if (buyVolRatio >= 2 && changePct >= 0) return 'buy-surge';
-  if (buyVolRatio >= 2)                   return 'buy-reversal';
-  // fallback: total volume spiked even if buy/sell is mixed
-  if (totalVolRatio >= 2)                 return 'vol-surge';
-  return 'vol-surge';
+/**
+ * Classify purely on volume — price direction is informational only.
+ * The user wants to see volume surges early, before price has moved.
+ *
+ *   strong-buy  → estimated buying volume jumped ≥ 3× (most conviction)
+ *   buy-surge   → estimated buying volume jumped ≥ 2×
+ *   vol-surge   → total volume jumped ≥ 2× (buy/sell mix unclear —
+ *                 matches what TradingView shows as a big volume bar)
+ */
+function classify(buyVolRatio: number, totalVolRatio: number): DayBuySignal {
+  if (buyVolRatio >= 3) return 'strong-buy';
+  if (buyVolRatio >= 2) return 'buy-surge';
+  return 'vol-surge';   // totalVolRatio >= 2 (already filtered above)
 }
 
-function calcScore(signal: DayBuySignal, buyVolRatio: number, totalVolRatio: number, changePct: number): number {
-  const base       = signal === 'strong-buy' ? 8
-                   : signal === 'buy-surge'   ? 6
-                   : signal === 'buy-reversal' ? 4
-                   : 3; // vol-surge
-  const ratio      = signal === 'vol-surge' ? totalVolRatio : buyVolRatio;
-  const volBonus   = Math.min(2, Math.floor(ratio - 2));
-  const priceBonus = Math.abs(changePct) >= 5 ? 1 : 0;
-  return Math.min(10, base + volBonus + priceBonus);
+function calcScore(signal: DayBuySignal, buyVolRatio: number, totalVolRatio: number): number {
+  const base     = signal === 'strong-buy' ? 7 : signal === 'buy-surge' ? 5 : 3;
+  const metric   = signal === 'vol-surge' ? totalVolRatio : buyVolRatio;
+  const volBonus = Math.min(3, Math.floor(metric - 2));
+  return Math.min(10, base + volBonus);
 }
 
 // ── Main scanner ──────────────────────────────────────────────────────────────
@@ -364,8 +366,8 @@ export async function runDayBuyVolumeScanner(
       if (buyVolRatio < 2 && totalVolRatio < 2) continue;
       if (endBar.volume < 200_000) continue;
 
-      const signal = classify(buyVolRatio, totalVolRatio, changePct);
-      const score  = calcScore(signal, buyVolRatio, totalVolRatio, changePct);
+      const signal = classify(buyVolRatio, totalVolRatio);
+      const score  = calcScore(signal, buyVolRatio, totalVolRatio);
 
       // For guaranteed symbols (placeholder avgVol3m = 1_000_000), estimate
       // avgVol3m from the bars we already fetched; otherwise use the quote value.
@@ -404,10 +406,12 @@ export async function runDayBuyVolumeScanner(
     if (i + CANDLE_CONC < candidates.length) await new Promise(r => setTimeout(r, 120));
   }
 
-  const ORDER: Record<DayBuySignal, number> = { 'strong-buy': 0, 'buy-surge': 1, 'buy-reversal': 2, 'vol-surge': 3 };
+  // Sort purely by volume jump magnitude — biggest spike first.
+  // Price direction is irrelevant; we want early signals before the move.
   results.sort((a, b) => {
-    const os = ORDER[a.signal] - ORDER[b.signal];
-    return os !== 0 ? os : b.buyVolRatio - a.buyVolRatio;
+    const aMetric = Math.max(a.totalVolRatio, a.buyVolRatio);
+    const bMetric = Math.max(b.totalVolRatio, b.buyVolRatio);
+    return bMetric - aMetric;
   });
 
   return results.slice(0, maxResults);
