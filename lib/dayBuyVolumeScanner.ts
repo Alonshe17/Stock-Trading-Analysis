@@ -9,6 +9,9 @@
  *   buyFrac  = (close − low) / (high − low)   [0 = all selling, 1 = all buying]
  *   buyVol   = totalVolume × buyFrac
  *
+ * Universe: fetches all ~6,000 US symbols from GitHub (same as weekly scanner),
+ * falls back to the static US_STOCKS list if the fetch fails.
+ *
  * Signals:
  *   strong-buy    → buyVolRatio ≥ 3× AND price change ≥ +2%
  *   buy-surge     → buyVolRatio ≥ 2× AND price change ≥ 0%
@@ -48,6 +51,42 @@ export type DayBuyVolumeResult = {
   signal: DayBuySignal;
   score:  number;
 };
+
+// ── Fetch full US symbol list (same pattern as weeklyVolumeScanner) ────────────
+
+const CLEAN_TICKER = /^[A-Z]{1,5}$/;
+
+async function fetchUSSymbols(): Promise<string[]> {
+  try {
+    const r = await fetch(
+      'https://raw.githubusercontent.com/rreichel3/US-Stock-Symbols/main/all/all_tickers.txt',
+      { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' },
+    );
+    if (r.ok) {
+      const text = await r.text();
+      const syms = text.split('\n').map(s => s.trim().toUpperCase()).filter(s => CLEAN_TICKER.test(s));
+      if (syms.length > 1000) return syms;
+    }
+  } catch { /* fall through */ }
+
+  // Fallback: NASDAQ FTP
+  const symbols = new Set<string>();
+  for (const url of [
+    'https://ftp.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt',
+    'https://ftp.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt',
+  ]) {
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' });
+      if (!r.ok) continue;
+      const text = await r.text();
+      for (const line of text.split('\n').slice(1)) {
+        const sym = line.split('|')[0]?.trim().toUpperCase();
+        if (sym && CLEAN_TICKER.test(sym)) symbols.add(sym);
+      }
+    } catch { /* skip */ }
+  }
+  return symbols.size > 500 ? [...symbols] : [];
+}
 
 // ── Batch quote ───────────────────────────────────────────────────────────────
 
@@ -125,7 +164,6 @@ async function fetchBarsWithDates(symbol: string, rangeParam: string): Promise<O
 
       const bars: OHLCVBar[] = ts
         .map((t, i) => {
-          // Use UTC so Vercel (UTC server) matches the user's intended date
           const d   = new Date(t * 1000);
           const yr  = d.getUTCFullYear();
           const mo  = d.getUTCMonth();
@@ -158,7 +196,6 @@ async function fetchBarsWithDates(symbol: string, rangeParam: string): Promise<O
 function findBarForDate(bars: OHLCVBar[], targetDate: string): OHLCVBar | null {
   const exact = bars.find(b => b.dateStr === targetDate);
   if (exact) return exact;
-  // Nearest prior trading day
   const before = bars.filter(b => b.dateStr < targetDate);
   return before.length > 0 ? before[before.length - 1] : null;
 }
@@ -189,10 +226,10 @@ function calcScore(signal: DayBuySignal, buyVolRatio: number, changePct: number)
 // ── Main scanner ──────────────────────────────────────────────────────────────
 
 export async function runDayBuyVolumeScanner(
-  universe:   string[],
+  fallbackUniverse: string[],
   maxResults = 50,
-  endDate?:   string,   // YYYY-MM-DD — the "after" bar (defaults to latest trading day)
-  startDate?: string,   // YYYY-MM-DD — the "before" bar (defaults to previous trading day)
+  endDate?:   string,   // YYYY-MM-DD — the "after" bar
+  startDate?: string,   // YYYY-MM-DD — the "before" bar
 ): Promise<DayBuyVolumeResult[]> {
 
   const customDates = !!(startDate && endDate);
@@ -201,7 +238,11 @@ export async function runDayBuyVolumeScanner(
   // Phase 0: YF session
   await ensureYFSession();
 
-  // Phase 1: batch-quote the universe (batches of 100, concurrency 3)
+  // Phase 1: get universe — try GitHub (~6,000 symbols), fall back to static list
+  let universe = await fetchUSSymbols();
+  if (universe.length < 500) universe = [...new Set(fallbackUniverse)];
+
+  // Phase 2: batch-quote the full universe (batches of 100, concurrency 3)
   const BATCH = 100, CONC = 3;
   const allQuotes: QuickQuote[] = [];
 
@@ -215,14 +256,29 @@ export async function runDayBuyVolumeScanner(
     if (i + BATCH * CONC < universe.length) await new Promise(r => setTimeout(r, 200));
   }
 
-  // Phase 2: pre-filter by recent volume elevation
-  const candidates = allQuotes
-    .filter(q => q.avgVol3m > 0 && q.avgVol10d > 0)
-    .map(q => ({ ...q, recentRatio: q.avgVol10d / q.avgVol3m }))
-    .sort((a, b) => b.recentRatio - a.recentRatio)
-    .slice(0, 200);
+  // Phase 3: select candidates for OHLCV fetching
+  //
+  // Custom dates: sort by avgVol3m desc (most liquid stocks first) → top 400.
+  //   We use raw liquidity because the current avgVol10d/avgVol3m ratio reflects
+  //   TODAY's activity, not what happened on the chosen historical dates. A stock
+  //   like IONQ that spiked weeks ago but has since gone quiet would score poorly
+  //   on the ratio even though it's exactly what we're looking for.
+  //
+  // Default (today vs previous day): sort by avgVol10d/avgVol3m ratio → top 200.
+  //   This efficiently surfaces stocks with elevated RECENT volume.
 
-  // Phase 3: fetch OHLCV bars and compute buying volume for the two dates
+  const candidates = customDates
+    ? allQuotes
+        .filter(q => q.avgVol3m > 0)
+        .sort((a, b) => b.avgVol3m - a.avgVol3m)
+        .slice(0, 400)
+    : allQuotes
+        .filter(q => q.avgVol3m > 0 && q.avgVol10d > 0)
+        .map(q => ({ ...q, recentRatio: q.avgVol10d / q.avgVol3m }))
+        .sort((a, b) => b.recentRatio - a.recentRatio)
+        .slice(0, 200);
+
+  // Phase 4: fetch OHLCV bars and compute buying volume for the two dates
   const CANDLE_CONC = 10;
   const results: DayBuyVolumeResult[] = [];
 
@@ -259,7 +315,7 @@ export async function runDayBuyVolumeScanner(
 
       if (prevBuyVol <= 0) continue;
       const buyVolRatio = todayBuyVol / prevBuyVol;
-      if (buyVolRatio < 2)   continue;
+      if (buyVolRatio < 2)     continue;
       if (todayBuyFrac < 0.35) continue;
       if (endBar.volume < 200_000) continue;
 
