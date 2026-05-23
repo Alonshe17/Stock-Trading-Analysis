@@ -120,6 +120,8 @@ export function ScannerResults({ results }: { results: ScanResult[] }) {
                     <Link
                       href={`/stock/${r.symbol}`}
                       onClick={(e) => e.stopPropagation()}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-blue-400 hover:text-blue-300 transition"
                     >
                       Full Analysis →
