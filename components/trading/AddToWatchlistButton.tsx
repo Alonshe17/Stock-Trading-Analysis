@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createBrowserSupabaseClient } from '@/lib/supabaseBrowser';
+import { getDeviceId } from '@/lib/deviceId';
 
 const STORAGE_KEY = 'swingmonitor_watchlist';
 
@@ -25,6 +27,7 @@ export function AddToWatchlistButton({ symbol, name }: Props) {
 
   function handleAdd() {
     try {
+      // 1. Write to localStorage immediately (instant UI feedback)
       const saved = localStorage.getItem(STORAGE_KEY);
       const list: { symbol: string; name: string; type: string }[] = saved ? JSON.parse(saved) : [];
       if (list.some((w) => w.symbol === symbol)) return;
@@ -32,6 +35,18 @@ export function AddToWatchlistButton({ symbol, name }: Props) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
       setAdded(true);
     } catch { /* ignore */ }
+
+    // 2. Also write to Supabase so the watchlist page sees it (fire-and-forget)
+    void (async () => {
+      try {
+        const sb = createBrowserSupabaseClient();
+        const deviceId = getDeviceId();
+        await sb.from('watchlist').upsert(
+          { device_id: deviceId, symbol, name, type: 'stock', added_at: new Date().toISOString() },
+          { onConflict: 'device_id,symbol' },
+        );
+      } catch { /* ignore — localStorage already written */ }
+    })();
   }
 
   if (added) {

@@ -143,57 +143,65 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
         .eq('device_id', deviceId)
         .order('added_at', { ascending: true });
 
-      if (!error && data && data.length > 0) {
-        // Supabase has saved data — use it
-        setWatchlist(data.map((r) => ({
+      const supabaseOk = !error;
+
+      if (supabaseOk && data && data.length > 0) {
+        // Supabase has saved data — use it and sync to localStorage as backup
+        const entries: WatchlistEntry[] = data.map((r) => ({
           symbol:  r.symbol,
           name:    r.name,
           type:    r.type as 'stock' | 'etf',
           warning: r.warning ?? undefined,
-        })));
+        }));
+        setWatchlist(entries);
+        try { localStorage.setItem(LS_KEY, JSON.stringify(entries)); } catch { /* ignore */ }
         setDbLoading(false);
         return;
       }
 
-      // No Supabase data — check for legacy localStorage data to migrate
+      // Supabase empty or failed — check localStorage (also handles scanner additions)
       try {
         const raw = localStorage.getItem(LS_KEY);
         if (raw) {
           const parsed: WatchlistEntry[] = JSON.parse(raw);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            // Migrate to Supabase
-            await sb.from('watchlist').upsert(
-              parsed.map((e, i) => ({
-                device_id: deviceId,
-                symbol:    e.symbol,
-                name:      e.name,
-                type:      e.type,
-                warning:   e.warning ?? null,
-                added_at:  new Date(Date.now() + i * 1000).toISOString(),
-              })),
-              { onConflict: 'device_id,symbol' },
-            );
-            localStorage.removeItem(LS_KEY); // clean up legacy key
             setWatchlist(parsed);
+            // If Supabase is working but was empty, migrate there too
+            if (supabaseOk) {
+              await sb.from('watchlist').upsert(
+                parsed.map((e, i) => ({
+                  device_id: deviceId,
+                  symbol:    e.symbol,
+                  name:      e.name,
+                  type:      e.type,
+                  warning:   e.warning ?? null,
+                  added_at:  new Date(Date.now() + i * 1000).toISOString(),
+                })),
+                { onConflict: 'device_id,symbol' },
+              );
+            }
             setDbLoading(false);
             return;
           }
         }
       } catch { /* ignore corrupted localStorage */ }
 
-      // First ever visit — seed defaults into Supabase
+      // First ever visit — seed defaults into both stores
       const initial = defaults.map(toEntry);
-      await sb.from('watchlist').upsert(
-        initial.map((e, i) => ({
-          device_id: deviceId,
-          symbol:    e.symbol,
-          name:      e.name,
-          type:      e.type,
-          warning:   e.warning ?? null,
-          added_at:  new Date(Date.now() + i * 1000).toISOString(),
-        })),
-        { onConflict: 'device_id,symbol' },
-      );
+      try { localStorage.setItem(LS_KEY, JSON.stringify(initial)); } catch { /* ignore */ }
+      if (supabaseOk) {
+        await sb.from('watchlist').upsert(
+          initial.map((e, i) => ({
+            device_id: deviceId,
+            symbol:    e.symbol,
+            name:      e.name,
+            type:      e.type,
+            warning:   e.warning ?? null,
+            added_at:  new Date(Date.now() + i * 1000).toISOString(),
+          })),
+          { onConflict: 'device_id,symbol' },
+        );
+      }
       setWatchlist(initial);
       setDbLoading(false);
     }
@@ -254,17 +262,23 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
 
       const newEntry: WatchlistEntry = { symbol, name: data.name ?? symbol, type: 'stock' };
 
-      // Guard: don't add if already present
+      // Guard: don't add if already present; keep localStorage in sync
       setWatchlist((prev) => {
         if (prev.some((w) => w.symbol === symbol)) return prev;
-        return [...prev, newEntry];
+        const next = [...prev, newEntry];
+        try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        return next;
       });
 
-      // Persist to Supabase
-      await createClient().from('watchlist').upsert(
-        { device_id: getDeviceId(), symbol: newEntry.symbol, name: newEntry.name, type: newEntry.type },
-        { onConflict: 'device_id,symbol' },
-      );
+      // Persist to Supabase (fire-and-forget)
+      void (async () => {
+        try {
+          await createClient().from('watchlist').upsert(
+            { device_id: getDeviceId(), symbol: newEntry.symbol, name: newEntry.name, type: newEntry.type, added_at: new Date().toISOString() },
+            { onConflict: 'device_id,symbol' },
+          );
+        } catch { /* Supabase optional */ }
+      })();
 
       setDataMap((prev) => ({ ...prev, [symbol]: data }));
       setLoadMap((prev) => ({ ...prev, [symbol]: 'done' }));
@@ -276,16 +290,22 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
   }
 
   async function handleRemove(symbol: string) {
-    // Remove from Supabase
-    await createClient()
-      .from('watchlist')
-      .delete()
-      .eq('device_id', getDeviceId())
-      .eq('symbol', symbol);
-
-    setWatchlist((prev) => prev.filter((w) => w.symbol !== symbol));
+    // Remove from localStorage
+    setWatchlist((prev) => {
+      const next = prev.filter((w) => w.symbol !== symbol);
+      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
     setDataMap((prev) => { const n = { ...prev }; delete n[symbol]; return n; });
     setLoadMap((prev) => { const n = { ...prev }; delete n[symbol]; return n; });
+
+    // Remove from Supabase (fire-and-forget — localStorage already updated)
+    void (async () => {
+      try {
+        await createClient().from('watchlist').delete()
+          .eq('device_id', getDeviceId()).eq('symbol', symbol);
+      } catch { /* ignore */ }
+    })();
   }
 
   function handleRefresh(symbol: string) {
