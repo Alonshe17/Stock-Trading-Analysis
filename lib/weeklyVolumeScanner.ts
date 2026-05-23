@@ -21,6 +21,7 @@ export type WeeklySignal =
   | 'breakout'
   | 'surge-up'
   | 'quiet-accumulation'
+  | 'distribution'          // high vol + flat price but down-days carry the volume
   | 'surge-down'
   | 'breakdown'
   | 'normal';
@@ -182,7 +183,7 @@ async function fetchWeekBars(symbol: string): Promise<Bar[]> {
 
 // ── Signal + score ────────────────────────────────────────────────────────────
 
-function classify(weekVolRatio: number, weekPricePct: number): WeeklySignal {
+function classify(weekVolRatio: number, weekPricePct: number, days: WeeklyDay[]): WeeklySignal {
   const bigVol   = weekVolRatio >= 2.0;
   const elevVol  = weekVolRatio >= 1.5;
   const bigUp    = weekPricePct >= 5;
@@ -193,7 +194,20 @@ function classify(weekVolRatio: number, weekPricePct: number): WeeklySignal {
 
   if (bigVol  && bigUp)   return 'breakout';
   if (elevVol && modUp)   return 'surge-up';
-  if (elevVol && flat)    return 'quiet-accumulation';
+
+  if (elevVol && flat) {
+    // Split volume into up-days vs down-days to distinguish
+    // true accumulation (buying absorption) from distribution (selling into strength)
+    const upVol   = days.filter(d => d.changePct >= 0).reduce((s, d) => s + d.volume, 0);
+    const downVol = days.filter(d => d.changePct <  0).reduce((s, d) => s + d.volume, 0);
+    const total   = upVol + downVol;
+    const downFrac = total > 0 ? downVol / total : 0.5;
+
+    // >55% of the week's volume hit on down days → distribution, not accumulation
+    if (downFrac > 0.55) return 'distribution';
+    return 'quiet-accumulation';
+  }
+
   if (bigVol  && bigDown) return 'breakdown';
   if (elevVol && modDown) return 'surge-down';
   return 'normal';
@@ -205,6 +219,7 @@ function scoreResult(signal: WeeklySignal, weekVolRatio: number, weekPricePct: n
     case 'breakout':           return Math.min(10, 7 + volBonus);
     case 'surge-up':           return Math.min(10, 6 + volBonus);
     case 'quiet-accumulation': return Math.min(10, 5 + volBonus);
+    case 'distribution':       return Math.max(0,  4 - volBonus);
     case 'breakdown':          return Math.max(0,  3 - volBonus);
     case 'surge-down':         return Math.max(0,  2 - volBonus);
     default:                   return 3;
@@ -296,7 +311,7 @@ export async function runWeeklyVolumeScanner(
         };
       });
 
-      const signal = classify(weekVolRatio, weekPricePct);
+      const signal = classify(weekVolRatio, weekPricePct, days);
       const score  = scoreResult(signal, weekVolRatio, weekPricePct);
 
       results.push({
@@ -325,9 +340,10 @@ export async function runWeeklyVolumeScanner(
     'breakout':           0,
     'surge-up':           1,
     'quiet-accumulation': 2,
-    'surge-down':         4,
-    'breakdown':          5,
     'normal':             3,
+    'distribution':       4,
+    'surge-down':         5,
+    'breakdown':          6,
   };
 
   results.sort((a, b) => {

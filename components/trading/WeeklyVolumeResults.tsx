@@ -26,12 +26,13 @@ function fmtCap(m: number) {
 const SIGNAL_META: Record<WeeklySignal, {
   label: string; badge: string; dot: string; row: string;
 }> = {
-  'breakout':           { label: '🚀 Breakout',     badge: 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50', dot: 'bg-emerald-400', row: 'hover:bg-emerald-950/30' },
-  'surge-up':           { label: '↑ Surge Up',      badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40', dot: 'bg-emerald-600', row: 'hover:bg-emerald-950/20' },
-  'quiet-accumulation': { label: '🤫 Accumulation', badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40',          dot: 'bg-blue-500',   row: 'hover:bg-blue-950/20'    },
-  'surge-down':         { label: '↓ Surge Down',    badge: 'bg-red-900/30 text-red-400 border-red-700/40',             dot: 'bg-red-600',    row: 'hover:bg-red-950/20'     },
-  'breakdown':          { label: '💥 Breakdown',    badge: 'bg-red-500/25 text-red-200 border-red-500/50',             dot: 'bg-red-400',    row: 'hover:bg-red-950/30'     },
-  'normal':             { label: 'Normal',           badge: 'bg-gray-800 text-gray-500 border-gray-700/40',             dot: 'bg-gray-600',   row: 'hover:bg-gray-900/40'    },
+  'breakout':           { label: '🚀 Breakout',      badge: 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50', dot: 'bg-emerald-400', row: 'hover:bg-emerald-950/30' },
+  'surge-up':           { label: '↑ Surge Up',       badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40', dot: 'bg-emerald-600', row: 'hover:bg-emerald-950/20' },
+  'quiet-accumulation': { label: '🤫 Accumulation',  badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40',          dot: 'bg-blue-500',   row: 'hover:bg-blue-950/20'    },
+  'distribution':       { label: '🔴 Distribution',  badge: 'bg-orange-900/30 text-orange-400 border-orange-700/40',    dot: 'bg-orange-500', row: 'hover:bg-orange-950/20'  },
+  'surge-down':         { label: '↓ Surge Down',     badge: 'bg-red-900/30 text-red-400 border-red-700/40',             dot: 'bg-red-600',    row: 'hover:bg-red-950/20'     },
+  'breakdown':          { label: '💥 Breakdown',     badge: 'bg-red-500/25 text-red-200 border-red-500/50',             dot: 'bg-red-400',    row: 'hover:bg-red-950/30'     },
+  'normal':             { label: 'Normal',            badge: 'bg-gray-800 text-gray-500 border-gray-700/40',             dot: 'bg-gray-600',   row: 'hover:bg-gray-900/40'    },
 };
 
 // ── Summary bar ───────────────────────────────────────────────────────────────
@@ -41,11 +42,12 @@ function SummaryBar({ results }: { results: WeeklyVolumeResult[] }) {
   for (const r of results) counts[r.signal] = (counts[r.signal] ?? 0) + 1;
 
   const items: { signal: WeeklySignal; label: string; badge: string }[] = [
-    { signal: 'breakout',           label: '🚀 Breakouts',     badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
-    { signal: 'surge-up',           label: '↑ Surge Up',       badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40' },
-    { signal: 'quiet-accumulation', label: '🤫 Accumulation',  badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40'          },
-    { signal: 'surge-down',         label: '↓ Surge Down',     badge: 'bg-red-900/30 text-red-400 border-red-700/40'             },
-    { signal: 'breakdown',          label: '💥 Breakdowns',    badge: 'bg-red-500/20 text-red-300 border-red-500/40'             },
+    { signal: 'breakout',           label: '🚀 Breakouts',     badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'  },
+    { signal: 'surge-up',           label: '↑ Surge Up',       badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40'  },
+    { signal: 'quiet-accumulation', label: '🤫 Accumulation',  badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40'           },
+    { signal: 'distribution',       label: '🔴 Distribution',  badge: 'bg-orange-900/30 text-orange-400 border-orange-700/40'     },
+    { signal: 'surge-down',         label: '↓ Surge Down',     badge: 'bg-red-900/30 text-red-400 border-red-700/40'              },
+    { signal: 'breakdown',          label: '💥 Breakdowns',    badge: 'bg-red-500/20 text-red-300 border-red-500/40'              },
   ];
 
   return (
