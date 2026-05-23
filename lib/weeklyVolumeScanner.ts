@@ -138,8 +138,8 @@ async function batchQuote(symbols: string[]): Promise<QuickQuote[]> {
         week52High: (q.fiftyTwoWeekHigh ?? 0) as number,
         week52Low:  (q.fiftyTwoWeekLow ?? 0) as number,
       })).filter(q =>
-        q.price >= 0.50 &&        // include low-priced but skip $0
-        q.avgVol3m >= 50_000      // need some baseline volume
+        q.price >= 10 &&           // price floor
+        q.avgVol3m >= 500_000      // 20-day avg vol floor (~3m avg proxy)
       );
       if (mapped.length > 0) return mapped;
     } catch { /* try next host */ }

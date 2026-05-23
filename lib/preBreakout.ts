@@ -175,7 +175,7 @@ async function batchQuote(symbols: string[]): Promise<QuickQuote[]> {
         marketCapM: (q.marketCap ?? 0) / 1_000_000,
         week52High: q.fiftyTwoWeekHigh ?? 0,
         week52Low:  q.fiftyTwoWeekLow ?? 0,
-      })).filter((q: QuickQuote) => q.price >= 3 && q.marketCapM >= 100 && q.avgVol3m >= 100_000);
+      })).filter((q: QuickQuote) => q.price >= 10 && q.avgVol3m >= 500_000);
       if (results.length > 0) return results;
     } catch { /* try next host */ }
   }

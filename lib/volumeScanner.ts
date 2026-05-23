@@ -140,7 +140,7 @@ async function batchQuotes(symbols: string[]): Promise<BatchQuote[]> {
           week52Low:  (q.fiftyTwoWeekLow ?? 0) as number,
           marketCapM: ((q.marketCap ?? 0) as number) / 1_000_000,
         }))
-        .filter(q => q.price >= 1 && q.marketCapM >= 100 && q.avgVol3m >= 100_000);
+        .filter(q => q.price >= 10 && q.avgVol3m >= 500_000);
       if (mapped.length > 0) return mapped;
     } catch { /* try next host */ }
   }
