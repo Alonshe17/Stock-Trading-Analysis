@@ -48,6 +48,17 @@ export default function ScannerPage() {
   const [dbvLoading,   setDbvLoading]   = useState(false);
   const [dbvError,     setDbvError]     = useState('');
   const [dbvScannedAt, setDbvScannedAt] = useState<Date | null>(null);
+  const [dbvEndDate,   setDbvEndDate]   = useState<string>(() => {
+    const d = new Date(); return d.toISOString().split('T')[0];
+  });
+  const [dbvStartDate, setDbvStartDate] = useState<string>(() => {
+    // Default to previous weekday
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    if (d.getDay() === 0) d.setDate(d.getDate() - 2); // Sun → Fri
+    if (d.getDay() === 6) d.setDate(d.getDate() - 1); // Sat → Fri
+    return d.toISOString().split('T')[0];
+  });
 
   async function runMomentumScan() {
     setMomLoading(true); setMomError('');
@@ -100,7 +111,8 @@ export default function ScannerPage() {
   async function runDayBuyScan() {
     setDbvLoading(true); setDbvError('');
     try {
-      const res = await fetch('/api/scanner/daybuyvolume');
+      const params = new URLSearchParams({ startDate: dbvStartDate, endDate: dbvEndDate });
+      const res = await fetch(`/api/scanner/daybuyvolume?${params}`);
       if (!res.ok) throw new Error('Scan failed');
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -310,11 +322,39 @@ export default function ScannerPage() {
               <span className="ml-2 text-gray-600">Buy Vol Ratio = today&apos;s buyVol ÷ yesterday&apos;s buyVol.</span>
             </div>
 
-            {/* Run button */}
-            <div className="flex items-center gap-4 mb-5">
+            {/* Date range + Run button */}
+            <div className="flex flex-wrap items-end gap-4 mb-5">
+              <div className="flex flex-wrap gap-3 items-end">
+                <div>
+                  <label className="block text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1">
+                    From (Compare)
+                  </label>
+                  <input
+                    type="date"
+                    value={dbvStartDate}
+                    max={dbvEndDate}
+                    onChange={e => setDbvStartDate(e.target.value)}
+                    className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1">
+                    To (Target)
+                  </label>
+                  <input
+                    type="date"
+                    value={dbvEndDate}
+                    min={dbvStartDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={e => setDbvEndDate(e.target.value)}
+                    className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
               <button
                 onClick={runDayBuyScan}
-                disabled={dbvLoading}
+                disabled={dbvLoading || !dbvStartDate || !dbvEndDate || dbvStartDate >= dbvEndDate}
                 className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 text-sm font-semibold text-white transition"
               >
                 {dbvLoading ? (

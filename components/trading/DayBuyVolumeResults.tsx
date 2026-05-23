@@ -31,6 +31,10 @@ function SummaryBar({ results }: { results: DayBuyVolumeResult[] }) {
   const counts: Partial<Record<DayBuySignal, number>> = {};
   for (const r of results) counts[r.signal] = (counts[r.signal] ?? 0) + 1;
 
+  // Derive comparison label from the first result (all results share the same dates)
+  const first = results[0];
+  const compLabel = first ? `${first.endDateLabel} vs ${first.startDateLabel}` : '';
+
   const items: { signal: DayBuySignal; label: string; badge: string }[] = [
     { signal: 'strong-buy',   label: '🔥 Strong Buy',  badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
     { signal: 'buy-surge',    label: '↑ Buy Surge',    badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40' },
@@ -44,6 +48,11 @@ function SummaryBar({ results }: { results: DayBuyVolumeResult[] }) {
           {label} <span className="opacity-70">{counts[signal] ?? 0}</span>
         </span>
       ))}
+      {compLabel && (
+        <span className="px-3 py-1.5 rounded-full border border-blue-700/40 bg-blue-900/20 text-blue-400 text-[11px] font-semibold">
+          📅 {compLabel}
+        </span>
+      )}
       <span className="px-3 py-1.5 rounded-full border border-gray-700/40 bg-gray-800 text-gray-400 text-[11px] font-semibold ml-auto">
         {results.length} stocks
       </span>
@@ -92,10 +101,10 @@ function ExpandedRow({ r }: { r: DayBuyVolumeResult }) {
           {/* Buy/Sell pressure comparison */}
           <div className="space-y-4">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-              Buying Pressure — Today vs Yesterday
+              Buying Pressure — {r.endDateLabel} vs {r.startDateLabel}
             </p>
-            <BuyPressureBar frac={r.todayBuyFrac} label="Today" />
-            <BuyPressureBar frac={r.prevBuyFrac}  label="Yesterday" />
+            <BuyPressureBar frac={r.todayBuyFrac} label={r.endDateLabel} />
+            <BuyPressureBar frac={r.prevBuyFrac}  label={r.startDateLabel} />
             <div className="flex gap-3 text-xs">
               <div className="flex-1 rounded-lg bg-gray-900 border border-gray-800 px-3 py-2">
                 <p className="text-[10px] text-gray-500 mb-0.5">Buy Vol Today</p>
@@ -120,9 +129,9 @@ function ExpandedRow({ r }: { r: DayBuyVolumeResult }) {
               Bar Details
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              {/* Today */}
+              {/* End date bar */}
               <div className="rounded-lg bg-gray-900 border border-emerald-800/40 px-3 py-2">
-                <p className="text-[10px] text-emerald-600 font-semibold mb-1">TODAY</p>
+                <p className="text-[10px] text-emerald-600 font-semibold mb-1 uppercase">{r.endDateLabel}</p>
                 <div className="space-y-0.5 text-gray-400">
                   <div className="flex justify-between"><span>Open</span><span className="text-white">${r.todayOpen.toFixed(2)}</span></div>
                   <div className="flex justify-between"><span>High</span><span className="text-emerald-400">${r.todayHigh.toFixed(2)}</span></div>
@@ -131,9 +140,9 @@ function ExpandedRow({ r }: { r: DayBuyVolumeResult }) {
                   <div className="flex justify-between"><span>Volume</span><span className="text-gray-300">{fmt(r.volume)}</span></div>
                 </div>
               </div>
-              {/* Yesterday */}
+              {/* Start date bar */}
               <div className="rounded-lg bg-gray-900 border border-gray-800 px-3 py-2">
-                <p className="text-[10px] text-gray-500 font-semibold mb-1">YESTERDAY</p>
+                <p className="text-[10px] text-gray-500 font-semibold mb-1 uppercase">{r.startDateLabel}</p>
                 <div className="space-y-0.5 text-gray-400">
                   <div className="flex justify-between"><span>Open</span><span className="text-white">${r.prevOpen.toFixed(2)}</span></div>
                   <div className="flex justify-between"><span>High</span><span className="text-emerald-400">${r.prevHigh.toFixed(2)}</span></div>
