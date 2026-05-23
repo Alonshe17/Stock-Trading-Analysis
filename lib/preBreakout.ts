@@ -14,11 +14,7 @@
  *  7. OBV Trend            — On-Balance Volume rising while price is flat (hidden buying)
  */
 
-const YF_HDR = {
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  Accept: 'application/json',
-};
+import { ensureYFSession, yfHeaders, withCrumb, yfSym as _yfSym } from './yfClient';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -92,11 +88,7 @@ export type PreBreakoutResult = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function yfSym(s: string): string {
-  if (s === 'BRK.B') return 'BRK-B';
-  if (s === 'BF.B')  return 'BF-B';
-  return s;
-}
+const yfSym = _yfSym;
 
 function sma(arr: number[], period: number): number | null {
   if (arr.length < period) return null;
@@ -125,30 +117,33 @@ function normSlope(arr: number[], n = 14): number {
 type Bar = { t: number; o: number; h: number; l: number; c: number; v: number };
 
 async function fetchBars(symbol: string, range = '1y'): Promise<Bar[]> {
-  const url =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym(symbol))}` +
-    `?interval=1d&range=${range}`;
-  try {
-    const r = await fetch(url, { headers: YF_HDR, cache: 'no-store' });
-    if (!r.ok) return [];
-    const json = await r.json();
-    const result = json?.chart?.result?.[0];
-    if (!result) return [];
-    const ts: number[] = result.timestamp ?? [];
-    const q = result.indicators?.quote?.[0] ?? {};
-    return ts
-      .map((t: number, i: number) => ({
-        t,
-        o: q.open?.[i]   as number,
-        h: q.high?.[i]   as number,
-        l: q.low?.[i]    as number,
-        c: q.close?.[i]  as number,
-        v: q.volume?.[i] as number ?? 0,
-      }))
-      .filter(b => b.o != null && b.c != null && b.h != null && b.l != null);
-  } catch {
-    return [];
+  // Try query2 first (less rate-limited), fall back to query1
+  for (const host of ['query2', 'query1']) {
+    const baseUrl =
+      `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym(symbol))}` +
+      `?interval=1d&range=${range}`;
+    try {
+      const r = await fetch(withCrumb(baseUrl), { headers: yfHeaders(), cache: 'no-store' });
+      if (!r.ok) continue;
+      const json = await r.json();
+      const result = json?.chart?.result?.[0];
+      if (!result) continue;
+      const ts: number[] = result.timestamp ?? [];
+      const q = result.indicators?.quote?.[0] ?? {};
+      const bars = ts
+        .map((t: number, i: number) => ({
+          t,
+          o: q.open?.[i]   as number,
+          h: q.high?.[i]   as number,
+          l: q.low?.[i]    as number,
+          c: q.close?.[i]  as number,
+          v: q.volume?.[i] as number ?? 0,
+        }))
+        .filter(b => b.o != null && b.c != null && b.h != null && b.l != null);
+      if (bars.length > 0) return bars;
+    } catch { /* try next host */ }
   }
+  return [];
 }
 
 // ── Batch quote (price + name + mktcap) ──────────────────────────────────────
@@ -160,28 +155,31 @@ type QuickQuote = {
 };
 
 async function batchQuote(symbols: string[]): Promise<QuickQuote[]> {
-  const syms = symbols.map(yfSym).join(',');
+  const syms   = symbols.map(yfSym).join(',');
   const fields = 'symbol,shortName,regularMarketPrice,regularMarketChangePercent,regularMarketVolume,averageDailyVolume3Month,marketCap,fiftyTwoWeekHigh,fiftyTwoWeekLow';
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(syms)}&fields=${fields}&lang=en-US&region=US`;
-  try {
-    const r = await fetch(url, { headers: YF_HDR, cache: 'no-store' });
-    if (!r.ok) return [];
-    const json = await r.json();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (json?.quoteResponse?.result ?? []).map((q: any) => ({
-      symbol:     q.symbol,
-      name:       q.shortName ?? q.symbol,
-      price:      q.regularMarketPrice ?? 0,
-      changePct:  q.regularMarketChangePercent ?? 0,
-      volume:     q.regularMarketVolume ?? 0,
-      avgVol3m:   q.averageDailyVolume3Month ?? 0,
-      marketCapM: (q.marketCap ?? 0) / 1_000_000,
-      week52High: q.fiftyTwoWeekHigh ?? 0,
-      week52Low:  q.fiftyTwoWeekLow ?? 0,
-    })).filter((q: QuickQuote) => q.price >= 1 && q.marketCapM >= 500 && q.avgVol3m >= 200_000);
-  } catch {
-    return [];
+
+  for (const host of ['query2', 'query1']) {
+    const baseUrl = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(syms)}&fields=${fields}&lang=en-US&region=US`;
+    try {
+      const r = await fetch(withCrumb(baseUrl), { headers: yfHeaders(), cache: 'no-store' });
+      if (!r.ok) continue;
+      const json = await r.json();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const results = (json?.quoteResponse?.result ?? []).map((q: any) => ({
+        symbol:     q.symbol,
+        name:       q.shortName ?? q.symbol,
+        price:      q.regularMarketPrice ?? 0,
+        changePct:  q.regularMarketChangePercent ?? 0,
+        volume:     q.regularMarketVolume ?? 0,
+        avgVol3m:   q.averageDailyVolume3Month ?? 0,
+        marketCapM: (q.marketCap ?? 0) / 1_000_000,
+        week52High: q.fiftyTwoWeekHigh ?? 0,
+        week52Low:  q.fiftyTwoWeekLow ?? 0,
+      })).filter((q: QuickQuote) => q.price >= 3 && q.marketCapM >= 100 && q.avgVol3m >= 100_000);
+      if (results.length > 0) return results;
+    } catch { /* try next host */ }
   }
+  return [];
 }
 
 // ── Per-stock analysis ────────────────────────────────────────────────────────
@@ -367,6 +365,9 @@ export async function runPreBreakoutScanner(
   maxResults = 40,
 ): Promise<PreBreakoutResult[]> {
 
+  // ── Phase 0: Initialise YF session (crumb + cookie) ─────────────────────
+  await ensureYFSession();
+
   // ── Phase 1: Get SPY baseline return ────────────────────────────────────
   const spyBars = await fetchBars('SPY', '1y');
   const spyRet60d = spyBars.length >= 61
@@ -398,8 +399,8 @@ export async function runPreBreakoutScanner(
     return rsB - rsA;
   });
 
-  // Take top 80 for full candle analysis
-  const candidates = nearHighCandidates.slice(0, 80);
+  // Take top 120 for full candle analysis (larger with expanded universe)
+  const candidates = nearHighCandidates.slice(0, 120);
 
   // ── Phase 3: Full candle analysis (concurrency-limited) ─────────────────
   const CONCURRENCY = 5;
