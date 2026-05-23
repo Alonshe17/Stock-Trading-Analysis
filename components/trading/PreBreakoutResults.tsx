@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { WatchlistStar } from '@/components/trading/WatchlistStar';
+import { AddToWatchlistButton } from '@/components/trading/AddToWatchlistButton';
 import type { PreBreakoutResult, Stage, SetupGrade } from '@/lib/preBreakout';
 
 // ── Config maps ────────────────────────────────────────────────────────────────
@@ -249,9 +251,12 @@ function ExpandedDetail({ r }: { r: PreBreakoutResult }) {
             </div>
           )}
 
-          {/* Disclaimer */}
-          <div className="mt-3 pt-2 border-t border-gray-800/40 text-[10px] text-gray-600">
-            Not financial advice. Always verify with your own research and risk management. Past setups do not guarantee future performance.
+          {/* Watchlist + Disclaimer */}
+          <div className="mt-3 pt-2 border-t border-gray-800/40 flex items-center justify-between gap-3">
+            <AddToWatchlistButton symbol={r.symbol} name={r.name} />
+            <span className="text-[10px] text-gray-600 text-right">
+              Not financial advice. Always verify with your own research.
+            </span>
           </div>
         </div>
       </td>
@@ -361,6 +366,7 @@ function ResultRow({ r }: { r: PreBreakoutResult }) {
                 >
                   {r.symbol}
                 </Link>
+                <WatchlistStar symbol={r.symbol} name={r.name} />
                 {r.pocketPivot && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/40 border border-orange-700/40 text-orange-400 font-bold">
                     🔥 Pivot

@@ -8,6 +8,7 @@ const YF_HEADERS = {
 
 export type QuoteSnapshot = {
   symbol: string;
+  name?: string;        // company name (optional)
   price: number;
   prevClose: number;
   changePct: number;

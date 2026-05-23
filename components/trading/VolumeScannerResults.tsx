@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { WatchlistStar } from '@/components/trading/WatchlistStar';
+import { AddToWatchlistButton } from '@/components/trading/AddToWatchlistButton';
 import type { VolumeScanResult, VolumePressure, OBVTrend, VolumeSignalLabel } from '@/lib/volumeScanner';
 
 // ── Config maps ────────────────────────────────────────────────────────────────
@@ -180,6 +182,11 @@ function SignalDetail({ result }: { result: VolumeScanResult }) {
               </div>
             </div>
           )}
+
+          {/* Watchlist */}
+          <div className="mt-3 pt-2 border-t border-gray-800/40">
+            <AddToWatchlistButton symbol={result.symbol} name={result.name} />
+          </div>
         </div>
       </td>
     </tr>
@@ -310,15 +317,18 @@ function ResultRow({ result }: { result: VolumeScanResult }) {
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${pc.dot}`} />
             <div>
-              <Link
-                href={`/stock/${result.symbol}`}
-                onClick={e => e.stopPropagation()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-bold text-white hover:text-blue-400 transition-colors"
-              >
-                {result.symbol}
-              </Link>
+              <div className="flex items-center gap-1.5">
+                <Link
+                  href={`/stock/${result.symbol}`}
+                  onClick={e => e.stopPropagation()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-white hover:text-blue-400 transition-colors"
+                >
+                  {result.symbol}
+                </Link>
+                <WatchlistStar symbol={result.symbol} name={result.name} />
+              </div>
               <div className="text-[10px] text-gray-500 truncate max-w-[120px]">
                 {result.name}
               </div>

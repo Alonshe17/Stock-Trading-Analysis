@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { WatchlistStar } from '@/components/trading/WatchlistStar';
+import { AddToWatchlistButton } from '@/components/trading/AddToWatchlistButton';
 import type { WeeklyVolumeResult, WeeklySignal } from '@/lib/weeklyVolumeScanner';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -120,6 +122,11 @@ function ExpandedRow({ r }: { r: WeeklyVolumeResult }) {
             <StatCard label="Market Cap"      value={fmtCap(r.marketCapM)}                      />
           </div>
 
+          {/* Watchlist */}
+          <div className="pt-2 md:col-span-2">
+            <AddToWatchlistButton symbol={r.symbol} name={r.name} />
+          </div>
+
         </div>
       </td>
     </tr>
@@ -209,7 +216,7 @@ export function WeeklyVolumeResults({ results }: { results: WeeklyVolumeResult[]
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${meta.dot}`} />
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <Link
                                 href={`/stock/${r.symbol}`}
                                 target="_blank"
@@ -219,6 +226,7 @@ export function WeeklyVolumeResults({ results }: { results: WeeklyVolumeResult[]
                               >
                                 {r.symbol}
                               </Link>
+                              <WatchlistStar symbol={r.symbol} name={r.name} />
                             </div>
                             <div className="text-[10px] text-gray-500 truncate max-w-[120px]">{r.name}</div>
                           </div>

@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { CandlestickChart } from './CandlestickChart';
+import { WatchlistStar } from '@/components/trading/WatchlistStar';
+import { AddToWatchlistButton } from '@/components/trading/AddToWatchlistButton';
 import type { ScanResult, EmaStatus } from '@/lib/intraday';
 
 const EMA_STATUS_LABEL: Record<EmaStatus, string> = {
@@ -70,7 +72,10 @@ export function ScannerResults({ results }: { results: ScanResult[] }) {
 
               {/* Symbol */}
               <td className="px-3 py-2">
-                <span className="font-bold text-white">{r.symbol}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-white">{r.symbol}</span>
+                  <WatchlistStar symbol={r.symbol} name={r.name ?? r.symbol} />
+                </div>
               </td>
 
               {/* Price */}
@@ -117,15 +122,18 @@ export function ScannerResults({ results }: { results: ScanResult[] }) {
                       <span>EMA200: <span className="text-amber-400">${r.ema200.toFixed(2)}</span></span>
                       <span>Avg Vol: <span className="text-white">{formatVolume(r.avgVolume)}</span></span>
                     </div>
-                    <Link
-                      href={`/stock/${r.symbol}`}
-                      onClick={(e) => e.stopPropagation()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 transition"
-                    >
-                      Full Analysis →
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <AddToWatchlistButton symbol={r.symbol} name={r.name ?? r.symbol} />
+                      <Link
+                        href={`/stock/${r.symbol}`}
+                        onClick={(e) => e.stopPropagation()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 transition"
+                      >
+                        Full Analysis →
+                      </Link>
+                    </div>
                   </div>
                   <CandlestickChart
                     candles={r.candles.slice(-120)}
