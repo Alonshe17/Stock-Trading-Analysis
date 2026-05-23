@@ -6,13 +6,15 @@ import { ScannerResults } from '@/components/trading/ScannerResults';
 import { VolumeScannerResults } from '@/components/trading/VolumeScannerResults';
 import { PreBreakoutResults } from '@/components/trading/PreBreakoutResults';
 import { WeeklyVolumeResults } from '@/components/trading/WeeklyVolumeResults';
+import { DayBuyVolumeResults } from '@/components/trading/DayBuyVolumeResults';
 import { TradingNav } from '@/components/trading/TradingNav';
 import type { ScanResult } from '@/lib/intraday';
 import type { VolumeScanResult } from '@/lib/volumeScanner';
 import type { PreBreakoutResult } from '@/lib/preBreakout';
 import type { WeeklyVolumeResult } from '@/lib/weeklyVolumeScanner';
+import type { DayBuyVolumeResult } from '@/lib/dayBuyVolumeScanner';
 
-type Tab = 'momentum' | 'volume' | 'prebreakout' | 'weekly';
+type Tab = 'momentum' | 'volume' | 'prebreakout' | 'weekly' | 'daybuy';
 
 export default function ScannerPage() {
   const [tab, setTab] = useState<Tab>('prebreakout');
@@ -40,6 +42,12 @@ export default function ScannerPage() {
   const [wvLoading,   setWvLoading]   = useState(false);
   const [wvError,     setWvError]     = useState('');
   const [wvScannedAt, setWvScannedAt] = useState<Date | null>(null);
+
+  // ── 1-Day Buying Volume scanner state ──
+  const [dbvResults,   setDbvResults]   = useState<DayBuyVolumeResult[] | null>(null);
+  const [dbvLoading,   setDbvLoading]   = useState(false);
+  const [dbvError,     setDbvError]     = useState('');
+  const [dbvScannedAt, setDbvScannedAt] = useState<Date | null>(null);
 
   async function runMomentumScan() {
     setMomLoading(true); setMomError('');
@@ -89,6 +97,22 @@ export default function ScannerPage() {
     }
   }
 
+  async function runDayBuyScan() {
+    setDbvLoading(true); setDbvError('');
+    try {
+      const res = await fetch('/api/scanner/daybuyvolume');
+      if (!res.ok) throw new Error('Scan failed');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setDbvResults(data);
+      setDbvScannedAt(new Date());
+    } catch (e) {
+      setDbvError(e instanceof Error ? e.message : 'Scan failed — try again');
+    } finally {
+      setDbvLoading(false);
+    }
+  }
+
   async function runPreBreakoutScan() {
     setPbLoading(true); setPbError('');
     try {
@@ -114,7 +138,7 @@ export default function ScannerPage() {
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">Stock Scanner</h1>
             <p className="text-gray-400 text-sm">
-              Four scan modes: pre-breakout setups, weekly volume surges across all US stocks, institutional price-volume analysis, and intraday momentum.
+              Five scan modes: pre-breakout setups, weekly volume surges, 1-day buying volume jumps, institutional price-volume analysis, and intraday momentum.
             </p>
           </div>
           <TradingNav active="/scanner" />
@@ -124,6 +148,9 @@ export default function ScannerPage() {
         <div className="flex flex-wrap gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 mb-6 w-fit">
           <TabButton active={tab === 'prebreakout'} onClick={() => setTab('prebreakout')}>
             🚀 Pre-Breakout Setup
+          </TabButton>
+          <TabButton active={tab === 'daybuy'} onClick={() => setTab('daybuy')}>
+            💥 1D Buy Volume
           </TabButton>
           <TabButton active={tab === 'weekly'} onClick={() => setTab('weekly')}>
             🔥 Weekly Volume
@@ -230,6 +257,88 @@ export default function ScannerPage() {
             {pbError && <ErrorBanner msg={pbError} />}
             {pbResults && !pbLoading && <PreBreakoutResults results={pbResults} />}
             {!pbResults && !pbLoading && <EmptyState label="Run Pre-Breakout Scan" note="Finds stocks in quiet accumulation bases before institutional breakouts." />}
+          </>
+        )}
+
+        {/* ── 1-DAY BUYING VOLUME TAB ── */}
+        {tab === 'daybuy' && (
+          <>
+            {/* Explainer */}
+            <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4 mb-5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                How It Works — Today&apos;s Buying Volume vs Yesterday
+              </p>
+              <p className="text-xs text-gray-500 leading-relaxed mb-3">
+                Finds stocks where <strong className="text-gray-300">buying volume today is significantly larger</strong> than buying volume yesterday.
+                Buying volume is estimated per bar using the <strong className="text-gray-300">Closing Price Location</strong> formula —
+                if a stock closes near its high, most of that bar&apos;s volume was buying; near the low means selling.
+                A big jump in buying volume signals fresh demand entering the stock.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-base">🔥</span>
+                    <span className="text-xs font-bold text-gray-300">Strong Buy</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Buy volume 3×+ yesterday AND price up 2%+. Institutions aggressively accumulating.</p>
+                  <p className="text-[10px] mt-1.5 font-semibold text-emerald-500">✓ Highest conviction</p>
+                </div>
+                <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-base">↑</span>
+                    <span className="text-xs font-bold text-gray-300">Buy Surge</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Buy volume 2×+ yesterday AND price up. Fresh buying demand entering the stock.</p>
+                  <p className="text-[10px] mt-1.5 font-semibold text-emerald-500">✓ Bullish signal</p>
+                </div>
+                <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-base">🔄</span>
+                    <span className="text-xs font-bold text-gray-300">Buy Reversal</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Buy volume 2×+ yesterday but price still flat/down. Demand absorbing supply — potential bottoming signal.</p>
+                  <p className="text-[10px] mt-1.5 font-semibold text-amber-500">⚠ Watch closely</p>
+                </div>
+              </div>
+            </div>
+
+            {/* How the formula works */}
+            <div className="rounded-lg border border-gray-800 bg-gray-900/30 px-4 py-3 mb-5 text-xs text-gray-500">
+              <span className="text-gray-400 font-semibold">Formula: </span>
+              buyVol = volume × (close − low) / (high − low).
+              <span className="ml-2 text-gray-600">Example: close at high → 100% buying · close at low → 0% buying · close at midpoint → 50%.</span>
+              <span className="ml-2 text-gray-600">Buy Vol Ratio = today&apos;s buyVol ÷ yesterday&apos;s buyVol.</span>
+            </div>
+
+            {/* Run button */}
+            <div className="flex items-center gap-4 mb-5">
+              <button
+                onClick={runDayBuyScan}
+                disabled={dbvLoading}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 text-sm font-semibold text-white transition"
+              >
+                {dbvLoading ? (
+                  <><Spinner /> Scanning (~30–60 sec)…</>
+                ) : (
+                  <><SearchIcon /> Scan Buying Volume</>
+                )}
+              </button>
+
+              {dbvScannedAt && !dbvLoading && (
+                <span className="text-xs text-gray-500">
+                  Last scanned {dbvScannedAt.toLocaleTimeString()}
+                  {dbvResults && <span className="ml-2 text-gray-400">· {dbvResults.length} results</span>}
+                </span>
+              )}
+            </div>
+
+            {dbvLoading && <ScanningState
+              text="Scanning ~1,200 US stocks for buying volume jumps vs yesterday…"
+              note="Computes buying pressure per bar using closing price location. Takes 30–60 seconds."
+            />}
+            {dbvError && <ErrorBanner msg={dbvError} />}
+            {dbvResults && !dbvLoading && <DayBuyVolumeResults results={dbvResults} />}
+            {!dbvResults && !dbvLoading && <EmptyState label="Scan Buying Volume" note="Finds stocks where today's buying volume is 2× or more than yesterday's — fresh institutional demand." />}
           </>
         )}
 
