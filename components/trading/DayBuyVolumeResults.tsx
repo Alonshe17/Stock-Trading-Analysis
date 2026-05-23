@@ -20,9 +20,10 @@ function fmt(n: number) {
 const SIGNAL_META: Record<DayBuySignal, {
   label: string; badge: string; dot: string; row: string;
 }> = {
-  'strong-buy':   { label: '🔥 Strong Buy',    badge: 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50', dot: 'bg-emerald-400', row: 'hover:bg-emerald-950/30' },
-  'buy-surge':    { label: '↑ Buy Surge',       badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40', dot: 'bg-emerald-600', row: 'hover:bg-emerald-950/20' },
-  'buy-reversal': { label: '🔄 Buy Reversal',   badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40',          dot: 'bg-blue-500',   row: 'hover:bg-blue-950/20'    },
+  'strong-buy':   { label: '🔥 Strong Buy',    badge: 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50', dot: 'bg-emerald-400',  row: 'hover:bg-emerald-950/30' },
+  'buy-surge':    { label: '↑ Buy Surge',       badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40', dot: 'bg-emerald-600',  row: 'hover:bg-emerald-950/20' },
+  'buy-reversal': { label: '🔄 Buy Reversal',   badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40',          dot: 'bg-blue-500',    row: 'hover:bg-blue-950/20'    },
+  'vol-surge':    { label: '📊 Vol Surge',       badge: 'bg-amber-900/30 text-amber-400 border-amber-700/40',       dot: 'bg-amber-500',   row: 'hover:bg-amber-950/20'   },
 };
 
 // ── Summary bar ───────────────────────────────────────────────────────────────
@@ -36,9 +37,10 @@ function SummaryBar({ results }: { results: DayBuyVolumeResult[] }) {
   const compLabel = first ? `${first.endDateLabel} vs ${first.startDateLabel}` : '';
 
   const items: { signal: DayBuySignal; label: string; badge: string }[] = [
-    { signal: 'strong-buy',   label: '🔥 Strong Buy',  badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
-    { signal: 'buy-surge',    label: '↑ Buy Surge',    badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40' },
-    { signal: 'buy-reversal', label: '🔄 Buy Reversal', badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40'         },
+    { signal: 'strong-buy',   label: '🔥 Strong Buy',   badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+    { signal: 'buy-surge',    label: '↑ Buy Surge',     badge: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/40' },
+    { signal: 'buy-reversal', label: '🔄 Buy Reversal',  badge: 'bg-blue-900/30 text-blue-400 border-blue-700/40'         },
+    { signal: 'vol-surge',    label: '📊 Vol Surge',     badge: 'bg-amber-900/30 text-amber-400 border-amber-700/40'      },
   ];
 
   return (
@@ -107,18 +109,23 @@ function ExpandedRow({ r }: { r: DayBuyVolumeResult }) {
             <BuyPressureBar frac={r.prevBuyFrac}  label={r.startDateLabel} />
             <div className="flex gap-3 text-xs">
               <div className="flex-1 rounded-lg bg-gray-900 border border-gray-800 px-3 py-2">
-                <p className="text-[10px] text-gray-500 mb-0.5">Buy Vol Today</p>
-                <p className="text-emerald-400 font-semibold">{fmt(r.todayBuyVol)}</p>
+                <p className="text-[10px] text-gray-500 mb-0.5">Vol {r.endDateLabel}</p>
+                <p className="text-emerald-400 font-semibold">{fmt(r.volume)}</p>
+                <p className="text-[9px] text-gray-600 mt-0.5">Buy est. {fmt(r.todayBuyVol)}</p>
               </div>
               <div className="flex-1 rounded-lg bg-gray-900 border border-gray-800 px-3 py-2">
-                <p className="text-[10px] text-gray-500 mb-0.5">Buy Vol Yesterday</p>
-                <p className="text-gray-300 font-semibold">{fmt(r.prevBuyVol)}</p>
+                <p className="text-[10px] text-gray-500 mb-0.5">Vol {r.startDateLabel}</p>
+                <p className="text-gray-300 font-semibold">{fmt(r.prevVolume)}</p>
+                <p className="text-[9px] text-gray-600 mt-0.5">Buy est. {fmt(r.prevBuyVol)}</p>
               </div>
               <div className="flex-1 rounded-lg bg-gray-900 border border-gray-800 px-3 py-2">
-                <p className="text-[10px] text-gray-500 mb-0.5">Buy Vol Ratio</p>
-                <p className={`font-bold ${r.buyVolRatio >= 3 ? 'text-orange-400' : 'text-amber-400'}`}>
-                  {r.buyVolRatio.toFixed(2)}×
+                <p className="text-[10px] text-gray-500 mb-0.5">Total Vol Ratio</p>
+                <p className={`font-bold ${r.totalVolRatio >= 3 ? 'text-orange-400' : 'text-amber-400'}`}>
+                  {r.totalVolRatio.toFixed(2)}×
                 </p>
+                {r.signal !== 'vol-surge' && (
+                  <p className="text-[9px] text-gray-600 mt-0.5">Buy ratio {r.buyVolRatio.toFixed(2)}×</p>
+                )}
               </div>
             </div>
           </div>
@@ -305,15 +312,32 @@ export function DayBuyVolumeResults({ results }: { results: DayBuyVolumeResult[]
                         </span>
                       </td>
 
-                      {/* Buy volume ratio (today buy / yesterday buy) — KEY METRIC */}
+                      {/* Buy volume ratio (today buy / yesterday buy) — KEY METRIC.
+                          For vol-surge show total vol ratio instead since buy vol ratio may be < 2 */}
                       <td className="px-4 py-3 text-right">
-                        <span className={`font-bold text-base ${
-                          r.buyVolRatio >= 5 ? 'text-orange-300' :
-                          r.buyVolRatio >= 3 ? 'text-orange-400' :
-                          r.buyVolRatio >= 2 ? 'text-amber-400'  : 'text-gray-400'
-                        }`}>
-                          {r.buyVolRatio.toFixed(1)}×
-                        </span>
+                        {r.signal === 'vol-surge' ? (
+                          <div>
+                            <span className={`font-bold text-base ${
+                              r.totalVolRatio >= 5 ? 'text-orange-300' :
+                              r.totalVolRatio >= 3 ? 'text-orange-400' :
+                              'text-amber-400'
+                            }`}>
+                              {r.totalVolRatio.toFixed(1)}×
+                            </span>
+                            <div className="text-[9px] text-gray-600">total vol</div>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className={`font-bold text-base ${
+                              r.buyVolRatio >= 5 ? 'text-orange-300' :
+                              r.buyVolRatio >= 3 ? 'text-orange-400' :
+                              r.buyVolRatio >= 2 ? 'text-amber-400'  : 'text-gray-400'
+                            }`}>
+                              {r.buyVolRatio.toFixed(1)}×
+                            </span>
+                            <div className="text-[9px] text-gray-600">buy vol</div>
+                          </div>
+                        )}
                       </td>
 
                       {/* Buy pressure today (buy fraction as %) */}
@@ -359,9 +383,10 @@ export function DayBuyVolumeResults({ results }: { results: DayBuyVolumeResult[]
       </div>
 
       <p className="mt-3 text-xs text-gray-600">
-        Buying volume estimated using Closing Price Location: <span className="font-mono">buyVol = totalVol × (close − low) / (high − low)</span>.
-        Buy Vol Ratio = today&apos;s estimated buying volume ÷ yesterday&apos;s. Price ≥ $10, avg vol ≥ 500K.
-        Not financial advice.
+        Buying volume estimated via Closing Price Location: <span className="font-mono">buyVol = totalVol × (close − low) / (high − low)</span>.
+        Strong Buy / Buy Surge / Buy Reversal require estimated buy vol ≥ 2×.{' '}
+        <span className="text-amber-700">📊 Vol Surge</span> = total volume ≥ 2× even if buy/sell direction is mixed — catches stocks like IONQ where TradingView shows a big volume bar.
+        Price ≥ $10, avg vol ≥ 500K. Not financial advice.
       </p>
     </div>
   );

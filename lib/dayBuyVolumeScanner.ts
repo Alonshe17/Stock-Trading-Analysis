@@ -16,13 +16,16 @@
  *   strong-buy    → buyVolRatio ≥ 3× AND price change ≥ +2%
  *   buy-surge     → buyVolRatio ≥ 2× AND price change ≥ 0%
  *   buy-reversal  → buyVolRatio ≥ 2× AND price change < 0% (demand absorbing supply)
+ *   vol-surge     → totalVolRatio ≥ 2× (big total volume day, direction unclear)
+ *                   catches stocks where TradingView shows a big volume bar
+ *                   even if the close-price-location estimate shows mixed buy/sell
  */
 
 import { ensureYFSession, yfHeaders, withCrumb, yfSym } from './yfClient';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type DayBuySignal = 'strong-buy' | 'buy-surge' | 'buy-reversal';
+export type DayBuySignal = 'strong-buy' | 'buy-surge' | 'buy-reversal' | 'vol-surge';
 
 export type DayBuyVolumeResult = {
   symbol:         string;
@@ -36,9 +39,11 @@ export type DayBuyVolumeResult = {
   endDateLabel:   string;      // e.g. "Mon 5/19"
   startDateLabel: string;      // e.g. "Mon 5/12"
 
+  totalVolRatio:  number;      // endBar.volume / startBar.volume  ← broad volume jump
+
   todayBuyVol:    number;      // end-date estimated buying volume
   prevBuyVol:     number;      // start-date estimated buying volume
-  buyVolRatio:    number;      // todayBuyVol / prevBuyVol  ← key metric
+  buyVolRatio:    number;      // todayBuyVol / prevBuyVol
 
   todayBuyFrac:   number;      // end-date buying pressure (0–1)
   prevBuyFrac:    number;      // start-date buying pressure (0–1)
@@ -210,16 +215,23 @@ function calcBuyVol(bar: OHLCVBar): { buyVol: number; buyFrac: number } {
 
 // ── Signal + score ────────────────────────────────────────────────────────────
 
-function classify(buyVolRatio: number, changePct: number): DayBuySignal {
+function classify(buyVolRatio: number, totalVolRatio: number, changePct: number): DayBuySignal {
   if (buyVolRatio >= 3 && changePct >= 2) return 'strong-buy';
   if (buyVolRatio >= 2 && changePct >= 0) return 'buy-surge';
-  return 'buy-reversal';
+  if (buyVolRatio >= 2)                   return 'buy-reversal';
+  // fallback: total volume spiked even if buy/sell is mixed
+  if (totalVolRatio >= 2)                 return 'vol-surge';
+  return 'vol-surge';
 }
 
-function calcScore(signal: DayBuySignal, buyVolRatio: number, changePct: number): number {
-  const base       = signal === 'strong-buy' ? 8 : signal === 'buy-surge' ? 6 : 4;
-  const volBonus   = Math.min(2, Math.floor(buyVolRatio - 2));
-  const priceBonus = changePct >= 5 ? 1 : 0;
+function calcScore(signal: DayBuySignal, buyVolRatio: number, totalVolRatio: number, changePct: number): number {
+  const base       = signal === 'strong-buy' ? 8
+                   : signal === 'buy-surge'   ? 6
+                   : signal === 'buy-reversal' ? 4
+                   : 3; // vol-surge
+  const ratio      = signal === 'vol-surge' ? totalVolRatio : buyVolRatio;
+  const volBonus   = Math.min(2, Math.floor(ratio - 2));
+  const priceBonus = Math.abs(changePct) >= 5 ? 1 : 0;
   return Math.min(10, base + volBonus + priceBonus);
 }
 
@@ -271,7 +283,7 @@ export async function runDayBuyVolumeScanner(
     ? allQuotes
         .filter(q => q.avgVol3m > 0)
         .sort((a, b) => b.avgVol3m - a.avgVol3m)
-        .slice(0, 400)
+        .slice(0, 600)
     : allQuotes
         .filter(q => q.avgVol3m > 0 && q.avgVol10d > 0)
         .map(q => ({ ...q, recentRatio: q.avgVol10d / q.avgVol3m }))
@@ -314,13 +326,17 @@ export async function runDayBuyVolumeScanner(
       const { buyVol: prevBuyVol,  buyFrac: prevBuyFrac  } = calcBuyVol(startBar);
 
       if (prevBuyVol <= 0) continue;
-      const buyVolRatio = todayBuyVol / prevBuyVol;
-      if (buyVolRatio < 2)     continue;
-      if (todayBuyFrac < 0.35) continue;
+      const buyVolRatio   = todayBuyVol / prevBuyVol;
+      const totalVolRatio = startBar.volume > 0 ? endBar.volume / startBar.volume : 0;
+
+      // Accept if either buying volume OR total volume jumped ≥ 2×.
+      // This catches stocks like IONQ where total volume explodes even if the
+      // close-price-location model shows mixed buy/sell activity.
+      if (buyVolRatio < 2 && totalVolRatio < 2) continue;
       if (endBar.volume < 200_000) continue;
 
-      const signal   = classify(buyVolRatio, changePct);
-      const score    = calcScore(signal, buyVolRatio, changePct);
+      const signal   = classify(buyVolRatio, totalVolRatio, changePct);
+      const score    = calcScore(signal, buyVolRatio, totalVolRatio, changePct);
       const volRatio = qq.avgVol3m > 0 ? endBar.volume / qq.avgVol3m : 0;
 
       results.push({
@@ -333,6 +349,7 @@ export async function runDayBuyVolumeScanner(
         volRatio,
         endDateLabel:   endBar.dateLabel,
         startDateLabel: startBar.dateLabel,
+        totalVolRatio,
         todayBuyVol,
         prevBuyVol,
         buyVolRatio,
@@ -351,7 +368,7 @@ export async function runDayBuyVolumeScanner(
     if (i + CANDLE_CONC < candidates.length) await new Promise(r => setTimeout(r, 120));
   }
 
-  const ORDER: Record<DayBuySignal, number> = { 'strong-buy': 0, 'buy-surge': 1, 'buy-reversal': 2 };
+  const ORDER: Record<DayBuySignal, number> = { 'strong-buy': 0, 'buy-surge': 1, 'buy-reversal': 2, 'vol-surge': 3 };
   results.sort((a, b) => {
     const os = ORDER[a.signal] - ORDER[b.signal];
     return os !== 0 ? os : b.buyVolRatio - a.buyVolRatio;

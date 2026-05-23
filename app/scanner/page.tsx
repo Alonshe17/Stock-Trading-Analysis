@@ -286,13 +286,13 @@ export default function ScannerPage() {
                 if a stock closes near its high, most of that bar&apos;s volume was buying; near the low means selling.
                 A big jump in buying volume signals fresh demand entering the stock.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <span className="text-base">🔥</span>
                     <span className="text-xs font-bold text-gray-300">Strong Buy</span>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">Buy volume 3×+ yesterday AND price up 2%+. Institutions aggressively accumulating.</p>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Est. buy volume 3×+ AND price up 2%+. Institutions aggressively accumulating.</p>
                   <p className="text-[10px] mt-1.5 font-semibold text-emerald-500">✓ Highest conviction</p>
                 </div>
                 <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
@@ -300,7 +300,7 @@ export default function ScannerPage() {
                     <span className="text-base">↑</span>
                     <span className="text-xs font-bold text-gray-300">Buy Surge</span>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">Buy volume 2×+ yesterday AND price up. Fresh buying demand entering the stock.</p>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Est. buy volume 2×+ AND price up. Fresh buying demand entering the stock.</p>
                   <p className="text-[10px] mt-1.5 font-semibold text-emerald-500">✓ Bullish signal</p>
                 </div>
                 <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
@@ -308,8 +308,16 @@ export default function ScannerPage() {
                     <span className="text-base">🔄</span>
                     <span className="text-xs font-bold text-gray-300">Buy Reversal</span>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">Buy volume 2×+ yesterday but price still flat/down. Demand absorbing supply — potential bottoming signal.</p>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Est. buy volume 2×+ but price flat/down. Demand absorbing supply — potential bottoming.</p>
                   <p className="text-[10px] mt-1.5 font-semibold text-amber-500">⚠ Watch closely</p>
+                </div>
+                <div className="rounded-lg bg-gray-900 border border-amber-900/30 p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-base">📊</span>
+                    <span className="text-xs font-bold text-gray-300">Vol Surge</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Total volume 2×+ the previous bar — same signal TradingView shows. Buy/sell direction is mixed; investigate further.</p>
+                  <p className="text-[10px] mt-1.5 font-semibold text-amber-500">⚠ Confirm direction</p>
                 </div>
               </div>
             </div>
