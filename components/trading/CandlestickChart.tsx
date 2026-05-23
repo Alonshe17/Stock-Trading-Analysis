@@ -200,12 +200,12 @@ export function CandlestickChart({
   defaultRange = '6M',
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded]       = useState(false);
-  const [activeRange, setActiveRange] = useState<Range>(defaultRange);
-  const [tooltip, setTooltip]         = useState<TooltipBar | null>(null);
+  const [expanded, setExpanded]           = useState(false);
+  const [activeRange, setActiveRange]     = useState<Range>(defaultRange);
+  const [tooltip, setTooltip]             = useState<TooltipBar | null>(null);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
-  // Detect touch device once on mount (avoids SSR mismatch)
+  // Detect touch device once on mount
   useEffect(() => {
     setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
   }, []);
@@ -296,6 +296,30 @@ export function CandlestickChart({
               .filter((d) => !isNaN(d.value) && visibleTimes.has(d.time as number)),
           );
         }
+      }
+
+      // ── Volume histogram (bottom 18% of chart) ─────────────────────────────
+      const hasVolume = visibleCandles.some((c) => c.v > 0);
+      if (hasVolume) {
+        const volSeries = chart.addSeries(lc.HistogramSeries, {
+          priceFormat:      { type: 'volume' },
+          priceScaleId:     'vol',
+          lastValueVisible: false,
+          priceLineVisible: false,
+        });
+        volSeries.priceScale().applyOptions({
+          scaleMargins: { top: 0.82, bottom: 0 },
+        });
+        volSeries.setData(
+          visibleCandles
+            .filter((c) => c.v > 0)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((c) => ({
+              time:  c.t as any,
+              value: c.v,
+              color: c.c >= c.o ? 'rgba(16,185,129,0.35)' : 'rgba(239,68,68,0.35)',
+            })),
+        );
       }
 
       chart.timeScale().fitContent();
@@ -459,6 +483,7 @@ export function CandlestickChart({
             <FloatingTooltip tooltip={tooltip} containerRef={containerRef} />
           )}
         </div>
+
       </div>
     </>
   );

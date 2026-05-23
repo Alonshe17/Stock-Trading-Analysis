@@ -11,6 +11,8 @@ import { StockNewsPanel } from '@/components/trading/StockNewsPanel';
 import { PriceAlertBell } from '@/components/trading/PriceAlertBell';
 import { FundamentalsPanel } from '@/components/trading/FundamentalsPanel';
 import { HistoricalDataTable } from '@/components/trading/HistoricalDataTable';
+import { RevenueChart } from '@/components/trading/RevenueChart';
+import { EarningsTable } from '@/components/trading/EarningsTable';
 import Link from 'next/link';
 import { TradingNav } from '@/components/trading/TradingNav';
 
@@ -101,6 +103,16 @@ export default async function StockPage({ params }: Props) {
             showRangeSelector
             defaultRange="6M"
           />
+        </div>
+
+        {/* Quarterly Earnings Table */}
+        <div className="mb-4">
+          <EarningsTable symbol={a.symbol} />
+        </div>
+
+        {/* Revenue Quarterly chart */}
+        <div className="mb-4">
+          <RevenueChart symbol={a.symbol} />
         </div>
 
         {/* Analysis grid */}

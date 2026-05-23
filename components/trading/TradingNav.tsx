@@ -1,14 +1,15 @@
 import Link from 'next/link';
 
 const NAV_ITEMS = [
-  { href: '/dashboard',       label: 'Dashboard',   short: 'Dash'     },
-  { href: '/watchlist',       label: 'Watchlist',   short: 'Watch'    },
-  { href: '/screener',        label: 'Screener',    short: 'Screen'   },
-  { href: '/scanner',         label: 'Scanner',     short: 'Scan'     },
-  { href: '/recommendations', label: 'Daily Picks', short: 'Picks'    },
-  { href: '/trends',          label: 'Trends',      short: 'Trends'   },
-  { href: '/alerts',          label: 'Alerts',      short: 'Alerts'   },
-  { href: '/backtest',        label: 'Backtest',    short: 'BTest'    },
+  { href: '/dashboard',        label: 'Dashboard',   short: 'Dash'     },
+  { href: '/watchlist',        label: 'Watchlist',   short: 'Watch'    },
+  { href: '/screener',         label: 'Screener',    short: 'Screen'   },
+  { href: '/scanner',          label: 'Scanner',     short: 'Scan'     },
+  { href: '/recommendations',  label: 'Daily Picks', short: 'Picks'    },
+  { href: '/trends',           label: 'Trends',      short: 'Trends'   },
+  { href: '/market-sentiment', label: 'Sentiment',   short: 'Sent'     },
+  { href: '/alerts',           label: 'Alerts',      short: 'Alerts'   },
+  { href: '/backtest',         label: 'Backtest',    short: 'BTest'    },
 ];
 
 /**

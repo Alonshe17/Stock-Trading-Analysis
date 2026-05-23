@@ -85,10 +85,6 @@ export function FundamentalsPanel({ financials: f, symbol }: Props) {
             color={f.pfcfTTM !== null ? (f.pfcfTTM < 20 ? 'text-emerald-400' : f.pfcfTTM < 35 ? 'text-amber-400' : 'text-red-400') : undefined}
           />
           <Row label="EV / Revenue"  value={fmt(f.evRevenueTTM)} />
-          <Row label="EPS (TTM)"
-            value={f.eps !== null ? `$${f.eps.toFixed(2)}` : '—'}
-            color={f.eps !== null ? (f.eps > 0 ? 'text-emerald-400' : 'text-red-400') : undefined}
-          />
           <Row label="Cash Flow/Share" value={f.cashFlowPerShare !== null ? `$${f.cashFlowPerShare.toFixed(2)}` : '—'}
             color={f.cashFlowPerShare !== null ? (f.cashFlowPerShare > 0 ? 'text-emerald-400' : 'text-red-400') : undefined}
           />
