@@ -145,8 +145,8 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
 
       const supabaseOk = !error;
 
+      // ── Priority 1: Supabase has saved data ──────────────────────────────────
       if (supabaseOk && data && data.length > 0) {
-        // Supabase has saved data — use it and sync to localStorage as backup
         const entries: WatchlistEntry[] = data.map((r) => ({
           symbol:  r.symbol,
           name:    r.name,
@@ -154,21 +154,24 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
           warning: r.warning ?? undefined,
         }));
         setWatchlist(entries);
+        // Sync to localStorage as local backup
         try { localStorage.setItem(LS_KEY, JSON.stringify(entries)); } catch { /* ignore */ }
         setDbLoading(false);
         return;
       }
 
-      // Supabase empty or failed — check localStorage (also handles scanner additions)
+      // ── Priority 2: Supabase empty/failed — restore from localStorage ────────
+      // This covers: Supabase outage, scanner additions not yet synced, first
+      // visit on a new browser where cookie restored the device_id.
       try {
         const raw = localStorage.getItem(LS_KEY);
         if (raw) {
           const parsed: WatchlistEntry[] = JSON.parse(raw);
           if (Array.isArray(parsed) && parsed.length > 0) {
             setWatchlist(parsed);
-            // If Supabase is working but was empty, migrate there too
+            // Back-fill Supabase so the next visit uses Priority 1
             if (supabaseOk) {
-              await sb.from('watchlist').upsert(
+              void sb.from('watchlist').upsert(
                 parsed.map((e, i) => ({
                   device_id: deviceId,
                   symbol:    e.symbol,
@@ -186,23 +189,9 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
         }
       } catch { /* ignore corrupted localStorage */ }
 
-      // First ever visit — seed defaults into both stores
-      const initial = defaults.map(toEntry);
-      try { localStorage.setItem(LS_KEY, JSON.stringify(initial)); } catch { /* ignore */ }
-      if (supabaseOk) {
-        await sb.from('watchlist').upsert(
-          initial.map((e, i) => ({
-            device_id: deviceId,
-            symbol:    e.symbol,
-            name:      e.name,
-            type:      e.type,
-            warning:   e.warning ?? null,
-            added_at:  new Date(Date.now() + i * 1000).toISOString(),
-          })),
-          { onConflict: 'device_id,symbol' },
-        );
-      }
-      setWatchlist(initial);
+      // ── Priority 3: Truly first visit — show empty watchlist ─────────────────
+      // Do NOT auto-seed default stocks; let the user add what they actually want.
+      setWatchlist([]);
       setDbLoading(false);
     }
 
