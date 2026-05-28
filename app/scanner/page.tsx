@@ -7,14 +7,16 @@ import { VolumeScannerResults } from '@/components/trading/VolumeScannerResults'
 import { PreBreakoutResults } from '@/components/trading/PreBreakoutResults';
 import { WeeklyVolumeResults } from '@/components/trading/WeeklyVolumeResults';
 import { DayBuyVolumeResults } from '@/components/trading/DayBuyVolumeResults';
+import { EarningsResults } from '@/components/trading/EarningsResults';
 import { TradingNav } from '@/components/trading/TradingNav';
 import type { ScanResult } from '@/lib/intraday';
 import type { VolumeScanResult } from '@/lib/volumeScanner';
 import type { PreBreakoutResult } from '@/lib/preBreakout';
 import type { WeeklyVolumeResult } from '@/lib/weeklyVolumeScanner';
 import type { DayBuyVolumeResult } from '@/lib/dayBuyVolumeScanner';
+import type { EarningsResult } from '@/lib/earningsScanner';
 
-type Tab = 'momentum' | 'volume' | 'prebreakout' | 'weekly' | 'daybuy';
+type Tab = 'momentum' | 'volume' | 'prebreakout' | 'weekly' | 'daybuy' | 'earnings';
 
 export default function ScannerPage() {
   const [tab, setTab] = useState<Tab>('prebreakout');
@@ -42,6 +44,16 @@ export default function ScannerPage() {
   const [wvLoading,   setWvLoading]   = useState(false);
   const [wvError,     setWvError]     = useState('');
   const [wvScannedAt, setWvScannedAt] = useState<Date | null>(null);
+
+  // ── Earnings Calendar scanner state ──
+  const [erResults,    setErResults]    = useState<EarningsResult[] | null>(null);
+  const [erLoading,    setErLoading]    = useState(false);
+  const [erError,      setErError]      = useState('');
+  const [erScannedAt,  setErScannedAt]  = useState<Date | null>(null);
+  const [erStartDate,  setErStartDate]  = useState<string>(() =>
+    new Date().toISOString().split('T')[0]
+  );
+  const [erDays,       setErDays]       = useState(30);
 
   // ── 1-Day Buying Volume scanner state ──
   const [dbvResults,   setDbvResults]   = useState<DayBuyVolumeResult[] | null>(null);
@@ -108,6 +120,23 @@ export default function ScannerPage() {
     }
   }
 
+  async function runEarningsScan() {
+    setErLoading(true); setErError('');
+    try {
+      const params = new URLSearchParams({ startDate: erStartDate, days: String(erDays) });
+      const res = await fetch(`/api/scanner/earnings?${params}`);
+      if (!res.ok) throw new Error('Scan failed');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setErResults(data);
+      setErScannedAt(new Date());
+    } catch (e) {
+      setErError(e instanceof Error ? e.message : 'Scan failed — try again');
+    } finally {
+      setErLoading(false);
+    }
+  }
+
   async function runDayBuyScan() {
     setDbvLoading(true); setDbvError('');
     try {
@@ -160,6 +189,9 @@ export default function ScannerPage() {
         <div className="flex flex-wrap gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 mb-6 w-fit">
           <TabButton active={tab === 'prebreakout'} onClick={() => setTab('prebreakout')}>
             🚀 Pre-Breakout Setup
+          </TabButton>
+          <TabButton active={tab === 'earnings'} onClick={() => setTab('earnings')}>
+            📅 Earnings Calendar
           </TabButton>
           <TabButton active={tab === 'daybuy'} onClick={() => setTab('daybuy')}>
             💥 1D Buy Volume
@@ -269,6 +301,97 @@ export default function ScannerPage() {
             {pbError && <ErrorBanner msg={pbError} />}
             {pbResults && !pbLoading && <PreBreakoutResults results={pbResults} />}
             {!pbResults && !pbLoading && <EmptyState label="Run Pre-Breakout Scan" note="Finds stocks in quiet accumulation bases before institutional breakouts." />}
+          </>
+        )}
+
+        {/* ── EARNINGS CALENDAR TAB ── */}
+        {tab === 'earnings' && (
+          <>
+            {/* Explainer */}
+            <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4 mb-5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                How It Works — Upcoming Earnings Calendar
+              </p>
+              <p className="text-xs text-gray-500 leading-relaxed mb-3">
+                Lists all US stocks reporting earnings within <strong className="text-gray-300">30 days</strong> of your chosen start date.
+                Pick any date and the scanner fetches Yahoo Finance&apos;s earnings calendar for each trading day in that window,
+                then enriches each stock with its current price, volume, and market cap.
+                Sorted by date (soonest first), then by market cap within each date.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-lg bg-gray-900 border border-red-900/30 p-3">
+                  <div className="flex items-center gap-1.5 mb-1"><span className="text-base">🔴</span><span className="text-xs font-bold text-gray-300">Today / Tomorrow</span></div>
+                  <p className="text-[10px] text-gray-500">Earnings imminent — highest volatility risk. Avoid opening new positions without checking the report time (BMO/AMC).</p>
+                </div>
+                <div className="rounded-lg bg-gray-900 border border-blue-900/30 p-3">
+                  <div className="flex items-center gap-1.5 mb-1"><span className="text-xs font-bold text-blue-300">BMO</span><span className="text-xs text-gray-500">Before Market Open</span></div>
+                  <p className="text-[10px] text-gray-500">Results released before 9:30 AM EST. Price gap happens at open — plan your position the day before.</p>
+                </div>
+                <div className="rounded-lg bg-gray-900 border border-purple-900/30 p-3">
+                  <div className="flex items-center gap-1.5 mb-1"><span className="text-xs font-bold text-purple-300">AMC</span><span className="text-xs text-gray-500">After Market Close</span></div>
+                  <p className="text-[10px] text-gray-500">Results released after 4 PM EST. Price gap happens the next morning — manage risk before market close.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="flex flex-wrap items-end gap-4 mb-5">
+              <div>
+                <label className="block text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={erStartDate}
+                  max={new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0]}
+                  onChange={e => setErStartDate(e.target.value)}
+                  className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1">
+                  Days Ahead
+                </label>
+                <select
+                  value={erDays}
+                  onChange={e => setErDays(Number(e.target.value))}
+                  className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value={7}>7 days</option>
+                  <option value={14}>14 days</option>
+                  <option value={30}>30 days</option>
+                  <option value={60}>60 days</option>
+                </select>
+              </div>
+
+              <button
+                onClick={runEarningsScan}
+                disabled={erLoading || !erStartDate}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 text-sm font-semibold text-white transition"
+              >
+                {erLoading ? <><Spinner /> Scanning (~30–60 sec)…</> : <><SearchIcon /> Find Upcoming Earnings</>}
+              </button>
+
+              {erScannedAt && !erLoading && (
+                <span className="text-xs text-gray-500">
+                  Last scanned {erScannedAt.toLocaleTimeString()}
+                  {erResults && <span className="ml-2 text-gray-400">· {erResults.length} stocks found</span>}
+                </span>
+              )}
+            </div>
+
+            {erLoading && <ScanningState
+              text={`Fetching earnings calendar for ${erDays} days from ${erStartDate}…`}
+              note="Queries Yahoo Finance's earnings calendar day-by-day, then fetches price data for each stock."
+            />}
+            {erError && <ErrorBanner msg={erError} />}
+            {erResults && !erLoading && <EarningsResults results={erResults} startDate={erStartDate} />}
+            {!erResults && !erLoading && (
+              <EmptyState
+                label="Find Upcoming Earnings"
+                note={`Shows all stocks reporting earnings within ${erDays} days of ${erStartDate}. Grouped by date, sorted by market cap.`}
+              />
+            )}
           </>
         )}
 
