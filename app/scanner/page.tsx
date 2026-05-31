@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ScannerResults } from '@/components/trading/ScannerResults';
 import { VolumeScannerResults } from '@/components/trading/VolumeScannerResults';
@@ -18,123 +18,97 @@ import type { EarningsResult } from '@/lib/earningsScanner';
 
 type Tab = 'momentum' | 'volume' | 'prebreakout' | 'weekly' | 'daybuy' | 'earnings';
 
-// ── sessionStorage helpers ────────────────────────────────────────────────────
+// ── Module-level cache ─────────────────────────────────────────────────────────
+// Lives outside React — survives component unmount/remount from client-side
+// navigation (e.g. clicking a stock and pressing Back). Cleared only on full
+// page reload (F5 / hard refresh).
+const _prevWeekday = () => {
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  if (d.getDay() === 0) d.setDate(d.getDate() - 2);
+  if (d.getDay() === 6) d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+};
 
-function ssGet<T>(key: string): T | null {
-  if (typeof window === 'undefined') return null;
-  try { const v = sessionStorage.getItem(key); return v ? (JSON.parse(v) as T) : null; } catch { return null; }
-}
-function ssGetDate(key: string): Date | null {
-  if (typeof window === 'undefined') return null;
-  try { const v = sessionStorage.getItem(key); return v ? new Date(v) : null; } catch { return null; }
-}
-function ssGetStr(key: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback;
-  try { return sessionStorage.getItem(key) ?? fallback; } catch { return fallback; }
-}
-function ssGetNum(key: string, fallback: number): number {
-  if (typeof window === 'undefined') return fallback;
-  try { const v = sessionStorage.getItem(key); return v !== null ? Number(v) : fallback; } catch { return fallback; }
-}
-function ssSave(key: string, value: unknown) {
-  try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { }
-}
-function ssSaveStr(key: string, value: string) {
-  try { sessionStorage.setItem(key, value); } catch { }
-}
+const _cache = {
+  tab:          'prebreakout' as Tab,
+  momResults:   null as ScanResult[] | null,
+  momScannedAt: null as Date | null,
+  volResults:   null as VolumeScanResult[] | null,
+  volScannedAt: null as Date | null,
+  pbResults:    null as PreBreakoutResult[] | null,
+  pbScannedAt:  null as Date | null,
+  wvResults:    null as WeeklyVolumeResult[] | null,
+  wvScannedAt:  null as Date | null,
+  erResults:    null as EarningsResult[] | null,
+  erScannedAt:  null as Date | null,
+  erStartDate:  new Date().toISOString().split('T')[0],
+  erDays:       30,
+  dbvResults:   null as DayBuyVolumeResult[] | null,
+  dbvScannedAt: null as Date | null,
+  dbvStartDate: _prevWeekday(),
+  dbvEndDate:   new Date().toISOString().split('T')[0],
+};
 
 export default function ScannerPage() {
-  const [tab, setTab] = useState<Tab>(() => (ssGetStr('scanner_tab', 'prebreakout') as Tab));
+  // Initialise directly from module-level cache — no effects, no async, no race conditions.
+  const [tab,         setTabState]    = useState<Tab>(_cache.tab);
+  const setTab = (t: Tab)             => { _cache.tab = t;          setTabState(t); };
 
   // ── Momentum scanner state ──
-  const [momResults,   setMomResults]   = useState<ScanResult[] | null>(() => ssGet('scanner_mom_results'));
-  const [momLoading,   setMomLoading]   = useState(false);
-  const [momError,     setMomError]     = useState('');
-  const [momScannedAt, setMomScannedAt] = useState<Date | null>(() => ssGetDate('scanner_mom_scanned_at'));
+  const [momResults,   setMomResultsState]   = useState<ScanResult[] | null>(_cache.momResults);
+  const [momLoading,   setMomLoading]        = useState(false);
+  const [momError,     setMomError]          = useState('');
+  const [momScannedAt, setMomScannedAtState] = useState<Date | null>(_cache.momScannedAt);
+  const setMomResults   = (v: ScanResult[] | null) => { _cache.momResults   = v; setMomResultsState(v); };
+  const setMomScannedAt = (v: Date | null)          => { _cache.momScannedAt = v; setMomScannedAtState(v); };
 
   // ── Volume scanner state ──
-  const [volResults,   setVolResults]   = useState<VolumeScanResult[] | null>(() => ssGet('scanner_vol_results'));
-  const [volLoading,   setVolLoading]   = useState(false);
-  const [volError,     setVolError]     = useState('');
-  const [volScannedAt, setVolScannedAt] = useState<Date | null>(() => ssGetDate('scanner_vol_scanned_at'));
+  const [volResults,   setVolResultsState]   = useState<VolumeScanResult[] | null>(_cache.volResults);
+  const [volLoading,   setVolLoading]        = useState(false);
+  const [volError,     setVolError]          = useState('');
+  const [volScannedAt, setVolScannedAtState] = useState<Date | null>(_cache.volScannedAt);
+  const setVolResults   = (v: VolumeScanResult[] | null) => { _cache.volResults   = v; setVolResultsState(v); };
+  const setVolScannedAt = (v: Date | null)                => { _cache.volScannedAt = v; setVolScannedAtState(v); };
 
   // ── Pre-Breakout scanner state ──
-  const [pbResults,   setPbResults]   = useState<PreBreakoutResult[] | null>(() => ssGet('scanner_pb_results'));
-  const [pbLoading,   setPbLoading]   = useState(false);
-  const [pbError,     setPbError]     = useState('');
-  const [pbScannedAt, setPbScannedAt] = useState<Date | null>(() => ssGetDate('scanner_pb_scanned_at'));
+  const [pbResults,   setPbResultsState]   = useState<PreBreakoutResult[] | null>(_cache.pbResults);
+  const [pbLoading,   setPbLoading]        = useState(false);
+  const [pbError,     setPbError]          = useState('');
+  const [pbScannedAt, setPbScannedAtState] = useState<Date | null>(_cache.pbScannedAt);
+  const setPbResults   = (v: PreBreakoutResult[] | null) => { _cache.pbResults   = v; setPbResultsState(v); };
+  const setPbScannedAt = (v: Date | null)                 => { _cache.pbScannedAt = v; setPbScannedAtState(v); };
 
   // ── Weekly Volume scanner state ──
-  const [wvResults,   setWvResults]   = useState<WeeklyVolumeResult[] | null>(() => ssGet('scanner_wv_results'));
-  const [wvLoading,   setWvLoading]   = useState(false);
-  const [wvError,     setWvError]     = useState('');
-  const [wvScannedAt, setWvScannedAt] = useState<Date | null>(() => ssGetDate('scanner_wv_scanned_at'));
+  const [wvResults,   setWvResultsState]   = useState<WeeklyVolumeResult[] | null>(_cache.wvResults);
+  const [wvLoading,   setWvLoading]        = useState(false);
+  const [wvError,     setWvError]          = useState('');
+  const [wvScannedAt, setWvScannedAtState] = useState<Date | null>(_cache.wvScannedAt);
+  const setWvResults   = (v: WeeklyVolumeResult[] | null) => { _cache.wvResults   = v; setWvResultsState(v); };
+  const setWvScannedAt = (v: Date | null)                  => { _cache.wvScannedAt = v; setWvScannedAtState(v); };
 
   // ── Earnings Calendar scanner state ──
-  const [erResults,    setErResults]    = useState<EarningsResult[] | null>(() => ssGet('scanner_er_results'));
-  const [erLoading,    setErLoading]    = useState(false);
-  const [erError,      setErError]      = useState('');
-  const [erScannedAt,  setErScannedAt]  = useState<Date | null>(() => ssGetDate('scanner_er_scanned_at'));
-  const [erStartDate,  setErStartDate]  = useState<string>(() =>
-    ssGetStr('scanner_er_start_date', new Date().toISOString().split('T')[0])
-  );
-  const [erDays, setErDays] = useState(() => ssGetNum('scanner_er_days', 30));
+  const [erResults,   setErResultsState]   = useState<EarningsResult[] | null>(_cache.erResults);
+  const [erLoading,   setErLoading]        = useState(false);
+  const [erError,     setErError]          = useState('');
+  const [erScannedAt, setErScannedAtState] = useState<Date | null>(_cache.erScannedAt);
+  const [erStartDate, setErStartDateState] = useState<string>(_cache.erStartDate);
+  const [erDays,      setErDaysState]      = useState<number>(_cache.erDays);
+  const setErResults   = (v: EarningsResult[] | null) => { _cache.erResults   = v; setErResultsState(v); };
+  const setErScannedAt = (v: Date | null)              => { _cache.erScannedAt = v; setErScannedAtState(v); };
+  const setErStartDate = (v: string)                   => { _cache.erStartDate = v; setErStartDateState(v); };
+  const setErDays      = (v: number)                   => { _cache.erDays      = v; setErDaysState(v); };
 
   // ── 1-Day Buying Volume scanner state ──
-  const [dbvResults,   setDbvResults]   = useState<DayBuyVolumeResult[] | null>(() => ssGet('scanner_dbv_results'));
-  const [dbvLoading,   setDbvLoading]   = useState(false);
-  const [dbvError,     setDbvError]     = useState('');
-  const [dbvScannedAt, setDbvScannedAt] = useState<Date | null>(() => ssGetDate('scanner_dbv_scanned_at'));
-  const [dbvEndDate,   setDbvEndDate]   = useState<string>(() =>
-    ssGetStr('scanner_dbv_end_date', new Date().toISOString().split('T')[0])
-  );
-  const [dbvStartDate, setDbvStartDate] = useState<string>(() => {
-    const fallback = (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      if (d.getDay() === 0) d.setDate(d.getDate() - 2);
-      if (d.getDay() === 6) d.setDate(d.getDate() - 1);
-      return d.toISOString().split('T')[0];
-    })();
-    return ssGetStr('scanner_dbv_start_date', fallback);
-  });
-
-  // ── Persist to sessionStorage whenever state changes ──
-  useEffect(() => { ssSaveStr('scanner_tab', tab); }, [tab]);
-
-  useEffect(() => {
-    if (momResults) ssSave('scanner_mom_results', momResults);
-    if (momScannedAt) ssSaveStr('scanner_mom_scanned_at', momScannedAt.toISOString());
-  }, [momResults, momScannedAt]);
-
-  useEffect(() => {
-    if (volResults) ssSave('scanner_vol_results', volResults);
-    if (volScannedAt) ssSaveStr('scanner_vol_scanned_at', volScannedAt.toISOString());
-  }, [volResults, volScannedAt]);
-
-  useEffect(() => {
-    if (pbResults) ssSave('scanner_pb_results', pbResults);
-    if (pbScannedAt) ssSaveStr('scanner_pb_scanned_at', pbScannedAt.toISOString());
-  }, [pbResults, pbScannedAt]);
-
-  useEffect(() => {
-    if (wvResults) ssSave('scanner_wv_results', wvResults);
-    if (wvScannedAt) ssSaveStr('scanner_wv_scanned_at', wvScannedAt.toISOString());
-  }, [wvResults, wvScannedAt]);
-
-  useEffect(() => {
-    if (erResults) ssSave('scanner_er_results', erResults);
-    if (erScannedAt) ssSaveStr('scanner_er_scanned_at', erScannedAt.toISOString());
-    ssSaveStr('scanner_er_start_date', erStartDate);
-    ssSaveStr('scanner_er_days', String(erDays));
-  }, [erResults, erScannedAt, erStartDate, erDays]);
-
-  useEffect(() => {
-    if (dbvResults) ssSave('scanner_dbv_results', dbvResults);
-    if (dbvScannedAt) ssSaveStr('scanner_dbv_scanned_at', dbvScannedAt.toISOString());
-    ssSaveStr('scanner_dbv_start_date', dbvStartDate);
-    ssSaveStr('scanner_dbv_end_date', dbvEndDate);
-  }, [dbvResults, dbvScannedAt, dbvStartDate, dbvEndDate]);
+  const [dbvResults,   setDbvResultsState]   = useState<DayBuyVolumeResult[] | null>(_cache.dbvResults);
+  const [dbvLoading,   setDbvLoading]        = useState(false);
+  const [dbvError,     setDbvError]          = useState('');
+  const [dbvScannedAt, setDbvScannedAtState] = useState<Date | null>(_cache.dbvScannedAt);
+  const [dbvEndDate,   setDbvEndDateState]   = useState<string>(_cache.dbvEndDate);
+  const [dbvStartDate, setDbvStartDateState] = useState<string>(_cache.dbvStartDate);
+  const setDbvResults   = (v: DayBuyVolumeResult[] | null) => { _cache.dbvResults   = v; setDbvResultsState(v); };
+  const setDbvScannedAt = (v: Date | null)                  => { _cache.dbvScannedAt = v; setDbvScannedAtState(v); };
+  const setDbvEndDate   = (v: string)                       => { _cache.dbvEndDate   = v; setDbvEndDateState(v); };
+  const setDbvStartDate = (v: string)                       => { _cache.dbvStartDate = v; setDbvStartDateState(v); };
 
   async function runMomentumScan() {
     setMomLoading(true); setMomError('');
