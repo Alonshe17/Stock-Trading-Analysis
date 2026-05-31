@@ -40,6 +40,8 @@ export async function Header() {
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-6">
             <Link href="/dashboard" className="text-gray-600 hover:text-gray-900 transition-colors">Dashboard</Link>
+            <Link href="/daily-brief" className="text-gray-600 hover:text-gray-900 transition-colors">Daily Brief</Link>
+            <Link href="/market-sentiment" className="text-gray-600 hover:text-gray-900 transition-colors">Sentiment</Link>
             <Link href="/watchlist" className="text-gray-600 hover:text-gray-900 transition-colors">Watchlist</Link>
             <Link href="/screener" className="text-gray-600 hover:text-gray-900 transition-colors">Screener</Link>
             <Link href="/recommendations" className="text-gray-600 hover:text-gray-900 transition-colors">Picks</Link>
@@ -47,7 +49,6 @@ export async function Header() {
             <Link href="/scanner" className="text-gray-600 hover:text-gray-900 transition-colors">Scanner</Link>
             <Link href="/alerts" className="text-gray-600 hover:text-gray-900 transition-colors">Alerts</Link>
             <Link href="/journal" className="text-gray-600 hover:text-gray-900 transition-colors">Journal</Link>
-            <Link href="/daily-brief" className="text-gray-600 hover:text-gray-900 transition-colors">Daily Brief</Link>
             <Link href="/methodology" className="text-gray-500 hover:text-gray-900 transition-colors text-sm">Methodology</Link>
           </nav>
 
