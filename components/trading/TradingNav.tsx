@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/alerts',           label: 'Alerts',      short: 'Alerts'   },
   { href: '/backtest',         label: 'Backtest',    short: 'BTest'    },
   { href: '/journal',          label: 'Journal',     short: 'Journal'  },
+  { href: '/daily-brief',      label: 'Daily Brief', short: 'Brief'    },
 ];
 
 /**
