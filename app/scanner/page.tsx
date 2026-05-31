@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ScannerResults } from '@/components/trading/ScannerResults';
 import { VolumeScannerResults } from '@/components/trading/VolumeScannerResults';
@@ -71,6 +71,101 @@ export default function ScannerPage() {
     if (d.getDay() === 6) d.setDate(d.getDate() - 1); // Sat → Fri
     return d.toISOString().split('T')[0];
   });
+
+  // ── Restore from sessionStorage on mount ──
+  useEffect(() => {
+    try {
+      const savedTab = sessionStorage.getItem('scanner_tab') as Tab | null;
+      if (savedTab) setTab(savedTab);
+
+      const momData = sessionStorage.getItem('scanner_mom_results');
+      if (momData) setMomResults(JSON.parse(momData));
+      const momAt = sessionStorage.getItem('scanner_mom_scanned_at');
+      if (momAt) setMomScannedAt(new Date(momAt));
+
+      const volData = sessionStorage.getItem('scanner_vol_results');
+      if (volData) setVolResults(JSON.parse(volData));
+      const volAt = sessionStorage.getItem('scanner_vol_scanned_at');
+      if (volAt) setVolScannedAt(new Date(volAt));
+
+      const pbData = sessionStorage.getItem('scanner_pb_results');
+      if (pbData) setPbResults(JSON.parse(pbData));
+      const pbAt = sessionStorage.getItem('scanner_pb_scanned_at');
+      if (pbAt) setPbScannedAt(new Date(pbAt));
+
+      const wvData = sessionStorage.getItem('scanner_wv_results');
+      if (wvData) setWvResults(JSON.parse(wvData));
+      const wvAt = sessionStorage.getItem('scanner_wv_scanned_at');
+      if (wvAt) setWvScannedAt(new Date(wvAt));
+
+      const erData = sessionStorage.getItem('scanner_er_results');
+      if (erData) setErResults(JSON.parse(erData));
+      const erAt = sessionStorage.getItem('scanner_er_scanned_at');
+      if (erAt) setErScannedAt(new Date(erAt));
+      const erSD = sessionStorage.getItem('scanner_er_start_date');
+      if (erSD) setErStartDate(erSD);
+      const erD = sessionStorage.getItem('scanner_er_days');
+      if (erD) setErDays(Number(erD));
+
+      const dbvData = sessionStorage.getItem('scanner_dbv_results');
+      if (dbvData) setDbvResults(JSON.parse(dbvData));
+      const dbvAt = sessionStorage.getItem('scanner_dbv_scanned_at');
+      if (dbvAt) setDbvScannedAt(new Date(dbvAt));
+      const dbvSD = sessionStorage.getItem('scanner_dbv_start_date');
+      if (dbvSD) setDbvStartDate(dbvSD);
+      const dbvED = sessionStorage.getItem('scanner_dbv_end_date');
+      if (dbvED) setDbvEndDate(dbvED);
+    } catch { /* ignore */ }
+  }, []);
+
+  // ── Persist to sessionStorage whenever state changes ──
+  useEffect(() => { try { sessionStorage.setItem('scanner_tab', tab); } catch { } }, [tab]);
+
+  useEffect(() => {
+    try {
+      if (momResults) sessionStorage.setItem('scanner_mom_results', JSON.stringify(momResults));
+      if (momScannedAt) sessionStorage.setItem('scanner_mom_scanned_at', momScannedAt.toISOString());
+    } catch { }
+  }, [momResults, momScannedAt]);
+
+  useEffect(() => {
+    try {
+      if (volResults) sessionStorage.setItem('scanner_vol_results', JSON.stringify(volResults));
+      if (volScannedAt) sessionStorage.setItem('scanner_vol_scanned_at', volScannedAt.toISOString());
+    } catch { }
+  }, [volResults, volScannedAt]);
+
+  useEffect(() => {
+    try {
+      if (pbResults) sessionStorage.setItem('scanner_pb_results', JSON.stringify(pbResults));
+      if (pbScannedAt) sessionStorage.setItem('scanner_pb_scanned_at', pbScannedAt.toISOString());
+    } catch { }
+  }, [pbResults, pbScannedAt]);
+
+  useEffect(() => {
+    try {
+      if (wvResults) sessionStorage.setItem('scanner_wv_results', JSON.stringify(wvResults));
+      if (wvScannedAt) sessionStorage.setItem('scanner_wv_scanned_at', wvScannedAt.toISOString());
+    } catch { }
+  }, [wvResults, wvScannedAt]);
+
+  useEffect(() => {
+    try {
+      if (erResults) sessionStorage.setItem('scanner_er_results', JSON.stringify(erResults));
+      if (erScannedAt) sessionStorage.setItem('scanner_er_scanned_at', erScannedAt.toISOString());
+      sessionStorage.setItem('scanner_er_start_date', erStartDate);
+      sessionStorage.setItem('scanner_er_days', String(erDays));
+    } catch { }
+  }, [erResults, erScannedAt, erStartDate, erDays]);
+
+  useEffect(() => {
+    try {
+      if (dbvResults) sessionStorage.setItem('scanner_dbv_results', JSON.stringify(dbvResults));
+      if (dbvScannedAt) sessionStorage.setItem('scanner_dbv_scanned_at', dbvScannedAt.toISOString());
+      sessionStorage.setItem('scanner_dbv_start_date', dbvStartDate);
+      sessionStorage.setItem('scanner_dbv_end_date', dbvEndDate);
+    } catch { }
+  }, [dbvResults, dbvScannedAt, dbvStartDate, dbvEndDate]);
 
   async function runMomentumScan() {
     setMomLoading(true); setMomError('');
