@@ -15,6 +15,7 @@ import { RevenueChart } from '@/components/trading/RevenueChart';
 import { EarningsTable } from '@/components/trading/EarningsTable';
 import Link from 'next/link';
 import { TradingNav } from '@/components/trading/TradingNav';
+import { StockJournalPanel } from '@/components/trading/StockJournalPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,6 +142,11 @@ export default async function StockPage({ params }: Props) {
         {/* Historical Data */}
         <div className="mt-6">
           <HistoricalDataTable symbol={a.symbol} />
+        </div>
+
+        {/* My Journal — client component, shows notes for this ticker */}
+        <div className="mt-6">
+          <StockJournalPanel symbol={a.symbol} />
         </div>
 
         {/* Strategy note */}

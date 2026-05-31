@@ -46,6 +46,7 @@ export async function Header() {
             <Link href="/trends" className="text-gray-600 hover:text-gray-900 transition-colors">Trends</Link>
             <Link href="/scanner" className="text-gray-600 hover:text-gray-900 transition-colors">Scanner</Link>
             <Link href="/alerts" className="text-gray-600 hover:text-gray-900 transition-colors">Alerts</Link>
+            <Link href="/journal" className="text-gray-600 hover:text-gray-900 transition-colors">Journal</Link>
             <Link href="/methodology" className="text-gray-500 hover:text-gray-900 transition-colors text-sm">Methodology</Link>
           </nav>
 

@@ -143,7 +143,7 @@ export function EarningsResults({
                       <th className="px-4 py-2 text-right">Chg%</th>
                       <th className="px-4 py-2 text-right">Volume</th>
                       <th className="px-4 py-2 text-right">Mkt Cap</th>
-                      <th className="px-4 py-2 text-right">EPS Est.</th>
+                      <th className="px-4 py-2 text-right">Fwd EPS</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -236,9 +236,11 @@ export function EarningsResults({
       </div>
 
       <p className="mt-4 text-xs text-gray-600">
-        Earnings dates and EPS estimates from Yahoo Finance. Dates may shift — always verify before trading.
+        Earnings dates from Yahoo Finance. Dates may shift — always verify before trading.
         BMO = Before Market Open · AMC = After Market Close · ? = Time Not Specified.
+        Fwd EPS = forward annual EPS estimate (proxy only — not the quarterly estimate).
         Sorted by date (soonest first), then market cap within each date.
+        Covers top ~5 000 US stocks by market cap.
         Not financial advice.
       </p>
     </div>

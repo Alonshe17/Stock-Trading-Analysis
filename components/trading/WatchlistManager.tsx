@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createBrowserSupabaseClient as createClient } from '@/lib/supabaseBrowser';
-import { getDeviceId } from '@/lib/deviceId';
+import { getDeviceId, setDeviceId, getSyncCode } from '@/lib/deviceId';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { SignalBadge } from './SignalBadge';
@@ -128,6 +128,24 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
   const [dbLoading, setDbLoading]     = useState(true); // true while fetching from Supabase
   const seeded = useRef(false);
 
+  // ── Sync / Recover state ─────────────────────────────────────────────────
+  const [showSync, setShowSync]       = useState(false);
+  const [syncTab, setSyncTab]         = useState<'code'|'custom'|'recover'>('custom');
+  const [syncCode, setSyncCode]       = useState('');         // auto 8-char code
+  const [syncInput, setSyncInput]     = useState('');         // enter another device's code
+  const [syncStatus, setSyncStatus]   = useState<'idle'|'loading'|'ok'|'error'>('idle');
+  const [syncMsg, setSyncMsg]         = useState('');
+  // Custom code tab
+  const [customCodeInput, setCustomCodeInput] = useState('');
+  const [customCodeStatus, setCustomCodeStatus] = useState<'idle'|'loading'|'ok'|'error'>('idle');
+  const [customCodeMsg, setCustomCodeMsg]     = useState('');
+  // Recover tab
+  const [recoverSymbol, setRecoverSymbol]     = useState('');
+  const [recoverStatus, setRecoverStatus]     = useState<'idle'|'loading'|'ok'|'error'>('idle');
+  const [recoverMsg, setRecoverMsg]           = useState('');
+  type RecoverResult = { deviceId: string; syncCode: string; count: number; symbols: string[]; latestAdd: string | null };
+  const [recoverResults, setRecoverResults]   = useState<RecoverResult[]>([]);
+
   // ── Load from Supabase on mount ────────────────────────────────────────────
   useEffect(() => {
     if (seeded.current) return;
@@ -196,6 +214,8 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
     }
 
     load();
+    // Show the user's own sync code once the ID is available
+    setSyncCode(getSyncCode());
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch analysis for a single symbol
@@ -228,6 +248,100 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
       }
     });
   }, [watchlist]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Load a watchlist by deviceId and make it the active one */
+  async function adoptDeviceId(newDeviceId: string): Promise<WatchlistEntry[]> {
+    setDeviceId(newDeviceId);
+    setSyncCode(getSyncCode());
+    const sb = createClient();
+    const { data, error } = await sb
+      .from('watchlist')
+      .select('*')
+      .eq('device_id', newDeviceId)
+      .order('added_at', { ascending: true });
+    if (!error && data && data.length > 0) {
+      const entries: WatchlistEntry[] = data.map(r => ({
+        symbol:  r.symbol,
+        name:    r.name,
+        type:    r.type as 'stock' | 'etf',
+        warning: r.warning ?? undefined,
+      }));
+      setWatchlist(entries);
+      setDataMap({});
+      setLoadMap({});
+      try { localStorage.setItem(LS_KEY, JSON.stringify(entries)); } catch { /* ignore */ }
+      return entries;
+    }
+    return [];
+  }
+
+  /** Tab: Code — enter another device's 8-char auto code */
+  async function handleSync() {
+    const code = syncInput.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== 8) { setSyncMsg('Enter the full 8-character code'); setSyncStatus('error'); return; }
+    setSyncStatus('loading'); setSyncMsg('');
+    try {
+      const res = await fetch(`/api/watchlist/sync?code=${code}`);
+      if (res.status === 404) { setSyncStatus('error'); setSyncMsg('Code not found — make sure the other device has stocks in its watchlist.'); return; }
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      if (!json.found || !json.deviceId) { setSyncStatus('error'); setSyncMsg('No watchlist found for that code.'); return; }
+      const entries = await adoptDeviceId(json.deviceId);
+      setSyncStatus('ok');
+      setSyncMsg(`Loaded ${entries.length} stock${entries.length !== 1 ? 's' : ''}. This device now shares that watchlist.`);
+      setSyncInput('');
+    } catch { setSyncStatus('error'); setSyncMsg('Something went wrong — try again.'); }
+  }
+
+  /** Tab: Custom — set or load a memorable personal code */
+  async function handleCustomCode() {
+    const code = customCodeInput.trim().toUpperCase().replace(/\s+/g, '_');
+    if (!code || code.length < 4) { setCustomCodeMsg('Choose a code with at least 4 characters'); setCustomCodeStatus('error'); return; }
+    setCustomCodeStatus('loading'); setCustomCodeMsg('');
+    try {
+      const res = await fetch('/api/watchlist/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldDeviceId: getDeviceId(), customCode: code }),
+      });
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      const entries = await adoptDeviceId(json.deviceId);
+      setCustomCodeStatus('ok');
+      if (json.action === 'loaded') {
+        setCustomCodeMsg(`Loaded your watchlist — ${entries.length} stock${entries.length !== 1 ? 's' : ''} restored.`);
+      } else {
+        setCustomCodeMsg(`Code "${code}" saved. Use this code on any device to access your watchlist.`);
+      }
+      setCustomCodeInput('');
+    } catch { setCustomCodeStatus('error'); setCustomCodeMsg('Something went wrong — try again.'); }
+  }
+
+  /** Tab: Recover — find a watchlist by a stock symbol you remember */
+  async function handleRecover() {
+    const sym = recoverSymbol.trim().toUpperCase();
+    if (!sym) { setRecoverMsg('Enter a stock symbol'); setRecoverStatus('error'); return; }
+    setRecoverStatus('loading'); setRecoverMsg(''); setRecoverResults([]);
+    try {
+      const res = await fetch(`/api/watchlist/recover?symbol=${sym}`);
+      const json = await res.json();
+      if (!json.found || !json.results?.length) {
+        setRecoverStatus('error');
+        setRecoverMsg(`No watchlist found containing ${sym}. Try another symbol.`);
+        return;
+      }
+      setRecoverStatus('ok');
+      setRecoverResults(json.results);
+      setRecoverMsg('');
+    } catch { setRecoverStatus('error'); setRecoverMsg('Something went wrong — try again.'); }
+  }
+
+  async function handleRestoreResult(result: RecoverResult) {
+    const entries = await adoptDeviceId(result.deviceId);
+    setRecoverMsg(`Restored! ${entries.length} stock${entries.length !== 1 ? 's' : ''} loaded.`);
+    setRecoverResults([]);
+    setRecoverStatus('ok');
+  }
 
   async function handleAdd() {
     const symbol = input.trim().toUpperCase();
@@ -320,6 +434,181 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
 
   return (
     <div>
+      {/* ── Sync / Recover panel ──────────────────────────────────────────────── */}
+      <div className="mb-5">
+        <button
+          onClick={() => { setShowSync(v => !v); }}
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+          Sync / Recover watchlist
+          <svg className={`h-3 w-3 transition-transform ${showSync ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showSync && (
+          <div className="mt-3 rounded-xl border border-gray-700/60 bg-gray-900/80 p-4">
+            {/* Tabs */}
+            <div className="flex gap-1 mb-4 border-b border-gray-700/60 pb-3">
+              {([
+                { id: 'custom',  label: '🔑 My Code' },
+                { id: 'code',    label: '📱 Device Code' },
+                { id: 'recover', label: '🔍 Recover' },
+              ] as const).map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSyncTab(tab.id)}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
+                    syncTab === tab.id
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ── Tab: My Code ───────────────────────────────────────────────── */}
+            {syncTab === 'custom' && (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-300 font-medium">
+                  Set a memorable personal code (e.g. <span className="font-mono text-blue-400">MYWATCH</span> or <span className="font-mono text-blue-400">JERIC2024</span>).
+                  Use the same code on any device to instantly load your watchlist — even after a browser wipe.
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={customCodeInput}
+                    onChange={e => { setCustomCodeInput(e.target.value.toUpperCase().replace(/\s+/g, '_').slice(0, 20)); setCustomCodeStatus('idle'); setCustomCodeMsg(''); }}
+                    onKeyDown={e => e.key === 'Enter' && handleCustomCode()}
+                    placeholder="e.g. JERIC2024"
+                    maxLength={20}
+                    className="font-mono flex-1 min-w-0 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none uppercase tracking-wider"
+                  />
+                  <button
+                    onClick={handleCustomCode}
+                    disabled={customCodeStatus === 'loading' || customCodeInput.length < 4}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
+                  >
+                    {customCodeStatus === 'loading' ? 'Saving…' : 'Set / Load Code'}
+                  </button>
+                </div>
+                {customCodeMsg && (
+                  <p className={`text-xs ${customCodeStatus === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {customCodeMsg}
+                  </p>
+                )}
+                <p className="text-[11px] text-gray-600">
+                  If you already set a code before, entering it again will reload your stocks. 4–20 characters, letters and numbers only.
+                </p>
+              </div>
+            )}
+
+            {/* ── Tab: Device Code ───────────────────────────────────────────── */}
+            {syncTab === 'code' && (
+              <div className="space-y-4">
+                {/* This device's auto code */}
+                <div>
+                  <p className="text-xs text-gray-400 mb-2">Your auto-generated device code:</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-base font-bold tracking-widest text-white bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 select-all">
+                      {syncCode || '—'}
+                    </span>
+                    <button
+                      onClick={() => syncCode && navigator.clipboard?.writeText(syncCode).catch(() => {})}
+                      className="text-xs text-blue-400 hover:text-blue-300 border border-blue-700/40 rounded-lg px-3 py-2 transition"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                {/* Enter another device's code */}
+                <div>
+                  <p className="text-xs text-gray-400 mb-2">Enter code from another device to load that watchlist:</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="text"
+                      value={syncInput}
+                      onChange={e => { setSyncInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)); setSyncStatus('idle'); setSyncMsg(''); }}
+                      onKeyDown={e => e.key === 'Enter' && handleSync()}
+                      placeholder="e.g. A3F8B21C"
+                      maxLength={8}
+                      className="font-mono w-36 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none tracking-widest uppercase"
+                    />
+                    <button
+                      onClick={handleSync}
+                      disabled={syncStatus === 'loading' || syncInput.length !== 8}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      {syncStatus === 'loading' ? 'Loading…' : 'Load'}
+                    </button>
+                  </div>
+                  {syncMsg && (
+                    <p className={`text-xs mt-2 ${syncStatus === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{syncMsg}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Tab: Recover ───────────────────────────────────────────────── */}
+            {syncTab === 'recover' && (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-300">
+                  Lost your watchlist? Enter a stock symbol you know was in it — we&apos;ll search for your saved data.
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={recoverSymbol}
+                    onChange={e => { setRecoverSymbol(e.target.value.toUpperCase()); setRecoverStatus('idle'); setRecoverMsg(''); setRecoverResults([]); }}
+                    onKeyDown={e => e.key === 'Enter' && handleRecover()}
+                    placeholder="e.g. AAPL"
+                    maxLength={6}
+                    className="font-mono w-28 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none uppercase"
+                  />
+                  <button
+                    onClick={handleRecover}
+                    disabled={recoverStatus === 'loading' || !recoverSymbol.trim()}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {recoverStatus === 'loading' ? 'Searching…' : 'Search'}
+                  </button>
+                </div>
+
+                {recoverMsg && (
+                  <p className={`text-xs ${recoverStatus === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{recoverMsg}</p>
+                )}
+
+                {recoverResults.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    <p className="text-xs text-gray-400">Found {recoverResults.length} watchlist{recoverResults.length !== 1 ? 's' : ''} — pick yours:</p>
+                    {recoverResults.map(r => (
+                      <div key={r.deviceId} className="flex items-center justify-between gap-3 rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2">
+                        <div>
+                          <p className="text-xs text-white font-medium">{r.count} stocks — {r.symbols.slice(0, 6).join(', ')}{r.count > 6 ? '…' : ''}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">Code: <span className="font-mono">{r.syncCode}</span></p>
+                        </div>
+                        <button
+                          onClick={() => handleRestoreResult(r)}
+                          className="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition"
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Add ticker input */}
       <div className="mb-6">
         <div className="flex gap-2 max-w-sm flex-wrap sm:flex-nowrap">

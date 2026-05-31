@@ -8,10 +8,14 @@
  *
  * The ID is only truly lost if the user explicitly chooses
  * "Clear all site data" in browser settings (which deletes both).
+ *
+ * Cross-device sync:
+ *   A user can call setDeviceId(code) to adopt another device's ID so both
+ *   devices share the exact same Supabase watchlist rows.
  */
 
-const LS_KEY     = 'swingmonitor_device_id';
-const COOKIE_KEY = 'swingmonitor_did';
+const LS_KEY      = 'swingmonitor_device_id';
+const COOKIE_KEY  = 'swingmonitor_did';
 const COOKIE_DAYS = 730; // 2 years
 
 function getCookie(name: string): string | null {
@@ -61,4 +65,38 @@ export function getDeviceId(): string {
   } catch {
     return 'anon';
   }
+}
+
+/**
+ * Adopt a different device ID (e.g. from a sync code entered by the user).
+ * Overwrites both localStorage and the cookie so all future operations
+ * (reads, writes, deletes) use this ID — effectively sharing the watchlist
+ * of whichever device originally had this ID.
+ */
+export function setDeviceId(id: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LS_KEY, id);
+    setCookie(COOKIE_KEY, id);
+  } catch { /* ignore */ }
+}
+
+/**
+ * Returns a short 8-char sync code the user can share with another device.
+ * It is just the first 8 characters of the UUID (uppercase, no dashes) —
+ * unique enough for personal use, easy to type on mobile.
+ */
+export function getSyncCode(): string {
+  const id = getDeviceId();
+  // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  // Take first two segments (8 + 4 chars = 12) and uppercase them
+  return id.replace(/-/g, '').substring(0, 8).toUpperCase();
+}
+
+/**
+ * Given a full device_id from Supabase that starts with the sync code,
+ * confirm it matches.
+ */
+export function syncCodeMatches(code: string, deviceId: string): boolean {
+  return deviceId.replace(/-/g, '').toUpperCase().startsWith(code.toUpperCase());
 }

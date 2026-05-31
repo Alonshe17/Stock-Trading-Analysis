@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/market-sentiment', label: 'Sentiment',   short: 'Sent'     },
   { href: '/alerts',           label: 'Alerts',      short: 'Alerts'   },
   { href: '/backtest',         label: 'Backtest',    short: 'BTest'    },
+  { href: '/journal',          label: 'Journal',     short: 'Journal'  },
 ];
 
 /**
