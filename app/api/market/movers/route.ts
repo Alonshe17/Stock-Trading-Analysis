@@ -64,10 +64,10 @@ async function fetchTrending(crumb: string, cookie: string): Promise<Mover[]> {
   const symbols: string[] = (trendJson?.finance?.result?.[0]?.quotes ?? []).map((q: any) => q.symbol).filter(Boolean);
   if (symbols.length === 0) return [];
 
-  // Bulk-fetch full quote data for those symbols
+  // Use query2 (no crumb/cookie required) for bulk quote fetch
   const quoteRes = await fetch(
-    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}&crumb=${encodeURIComponent(crumb)}`,
-    { headers: { ...YF_HEADERS, Cookie: cookie }, cache: 'no-store' },
+    `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}&lang=en-US&region=US`,
+    { headers: YF_HEADERS, cache: 'no-store' },
   );
   if (!quoteRes.ok) throw new Error(`Yahoo Finance quote ${quoteRes.status}`);
 
