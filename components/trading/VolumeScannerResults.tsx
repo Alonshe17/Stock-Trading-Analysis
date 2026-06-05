@@ -321,8 +321,6 @@ function ResultRow({ result }: { result: VolumeScanResult }) {
                 <Link
                   href={`/stock/${result.symbol}`}
                   onClick={e => e.stopPropagation()}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="font-bold text-white hover:text-blue-400 transition-colors"
                 >
                   {result.symbol}

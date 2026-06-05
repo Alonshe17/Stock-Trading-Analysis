@@ -360,8 +360,6 @@ function ResultRow({ r }: { r: PreBreakoutResult }) {
                 <Link
                   href={`/stock/${r.symbol}`}
                   onClick={e => e.stopPropagation()}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="font-bold text-white hover:text-blue-400 transition-colors"
                 >
                   {r.symbol}

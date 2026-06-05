@@ -133,8 +133,6 @@ function EntryCard({
           {entry.symbol && (
             <Link
               href={`/stock/${entry.symbol}`}
-              target="_blank"
-              rel="noopener noreferrer"
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-900/40 border border-blue-700/40 text-blue-400 text-xs font-bold hover:bg-blue-900/60 transition"
             >
               {entry.symbol} ↗

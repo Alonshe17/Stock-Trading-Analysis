@@ -221,8 +221,6 @@ export function WeeklyVolumeResults({ results }: { results: WeeklyVolumeResult[]
                             <div className="flex items-center gap-1.5">
                               <Link
                                 href={`/stock/${r.symbol}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 onClick={e => e.stopPropagation()}
                                 className="font-bold text-white hover:text-blue-400 transition-colors"
                               >

@@ -21,14 +21,21 @@ const SCREENER_IDS: Record<string, string> = {
   actives: 'most_actives',
 };
 
-const YF_HEADERS = {
+// query1 headers (with auth)
+const Q1_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json',
+};
+
+// query2 headers (no auth needed)
+const Q2_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Accept': 'application/json',
 };
 
 async function getYFCrumb(): Promise<{ crumb: string; cookie: string }> {
   const r = await fetch('https://query1.finance.yahoo.com/v1/test/getcrumb', {
-    headers: { ...YF_HEADERS, 'Accept': '*/*' },
+    headers: { ...Q1_HEADERS, 'Accept': '*/*' },
     cache: 'no-store',
   });
   const crumb = (await r.text()).trim();
@@ -51,51 +58,88 @@ function mapQuote(q: any): Mover {
   };
 }
 
-// Trending uses a separate endpoint that returns only symbols — then we bulk-fetch quotes.
-async function fetchTrending(crumb: string, cookie: string): Promise<Mover[]> {
+// ── Trending ──────────────────────────────────────────────────────────────────
+async function fetchTrending(): Promise<Mover[]> {
+  // Step 1: get trending symbol list — works without auth
   const trendRes = await fetch(
-    `https://query1.finance.yahoo.com/v1/finance/trending/US?count=25&crumb=${encodeURIComponent(crumb)}`,
-    { headers: { ...YF_HEADERS, Cookie: cookie }, cache: 'no-store' },
+    'https://query1.finance.yahoo.com/v1/finance/trending/US?count=25&lang=en-US&region=US',
+    { headers: Q1_HEADERS, cache: 'no-store' },
   );
-  if (!trendRes.ok) throw new Error(`Yahoo Finance trending ${trendRes.status}`);
+  if (!trendRes.ok) throw new Error(`Trending list failed (${trendRes.status})`);
 
   const trendJson = await trendRes.json();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const symbols: string[] = (trendJson?.finance?.result?.[0]?.quotes ?? []).map((q: any) => q.symbol).filter(Boolean);
+  const raw: any[] = trendJson?.finance?.result?.[0]?.quotes ?? [];
+
+  // Keep only plain equity symbols (filter out ^GSPC, BTC-USD, EURUSD=X …)
+  const symbols: string[] = raw
+    .map((q: { symbol?: string }) => q.symbol ?? '')
+    .filter(s => s && !s.startsWith('^') && !s.includes('=') && !s.includes('-'))
+    .slice(0, 15);
+
   if (symbols.length === 0) return [];
 
-  // Use query2 (no crumb/cookie required) for bulk quote fetch
-  const quoteRes = await fetch(
-    `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}&lang=en-US&region=US`,
-    { headers: YF_HEADERS, cache: 'no-store' },
-  );
-  if (!quoteRes.ok) throw new Error(`Yahoo Finance quote ${quoteRes.status}`);
-
-  const quoteJson = await quoteRes.json();
+  // Step 2: v8/finance/chart works without any crumb/cookie auth
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const quotes: any[] = quoteJson?.quoteResponse?.result ?? [];
-  return quotes.map(mapQuote);
+  const settled = await Promise.allSettled<any>(
+    symbols.map(sym =>
+      fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}` +
+        `?interval=1d&range=1d&includePrePost=false`,
+        { headers: Q1_HEADERS, cache: 'no-store' },
+      ).then(r => (r.ok ? r.json() : Promise.reject(new Error(`${sym}: ${r.status}`)))),
+    ),
+  );
+
+  const movers: Mover[] = [];
+  for (let i = 0; i < symbols.length; i++) {
+    const result = settled[i];
+    if (result.status !== 'fulfilled') continue;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meta: any = result.value?.chart?.result?.[0]?.meta;
+    if (!meta) continue;
+    const price = Number(meta.regularMarketPrice ?? 0);
+    const prev  = Number(meta.chartPreviousClose ?? meta.previousClose ?? 0);
+    if (price <= 0) continue;
+    const change    = prev > 0 ? price - prev : 0;
+    const changePct = prev > 0 ? (change / prev) * 100 : 0;
+    movers.push({
+      symbol:     symbols[i],
+      name:       String(meta.longName ?? meta.shortName ?? symbols[i]),
+      price,
+      change,
+      changePct,
+      volume:     Number(meta.regularMarketVolume ?? 0),
+      avgVolume:  Number(meta.regularMarketVolume ?? 0),
+      marketCapM: 0,
+    });
+  }
+  return movers;
 }
 
+// ── Main handler ──────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get('type') ?? 'gainers';
 
   try {
-    const { crumb, cookie } = await getYFCrumb();
-
-    // Trending tickers use a different API path
+    // Trending has its own crumb fetch inside fetchTrending()
     if (type === 'trending') {
-      return NextResponse.json(await fetchTrending(crumb, cookie));
+      return NextResponse.json(await fetchTrending());
     }
 
+    const { crumb, cookie } = await getYFCrumb();
     const scrId = SCREENER_IDS[type] ?? 'day_gainers';
+
     const url =
       `https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved` +
       `?formatted=false&lang=en-US&region=US&scrIds=${scrId}&count=25` +
       `&crumb=${encodeURIComponent(crumb)}`;
 
-    const res = await fetch(url, { headers: { ...YF_HEADERS, Cookie: cookie }, cache: 'no-store' });
-    if (!res.ok) throw new Error(`Yahoo Finance ${res.status}`);
+    const res = await fetch(url, {
+      headers: { ...Q1_HEADERS, Cookie: cookie },
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error(`Screener fetch failed (${res.status})`);
 
     const json = await res.json();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
