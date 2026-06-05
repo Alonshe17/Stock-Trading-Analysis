@@ -64,6 +64,7 @@ export async function getCandles(
     const result = data?.chart?.result?.[0];
     if (!result) return [];
 
+    const meta        = result.meta ?? {};
     const timestamps: number[] = result.timestamp ?? [];
     const quote = result.indicators?.quote?.[0] ?? {};
     const opens: number[] = quote.open ?? [];
@@ -72,7 +73,7 @@ export async function getCandles(
     const closes: number[] = quote.close ?? [];
     const volumes: number[] = quote.volume ?? [];
 
-    return timestamps
+    const candles: Candle[] = timestamps
       .map((t, i) => ({
         t,
         o: opens[i],
@@ -82,6 +83,40 @@ export async function getCandles(
         v: volumes[i] ?? 0,
       }))
       .filter((c) => c.o != null && c.h != null && c.l != null && c.c != null);
+
+    // Yahoo Finance often returns today's candle with null OHLC values while the market
+    // is open (intraday). Patch the last candle — or append a new one — using the live
+    // meta fields so callers always see the current price rather than yesterday's close.
+    const livePrice = meta.regularMarketPrice as number | undefined;
+    if (livePrice && livePrice > 0) {
+      const liveTime   = (meta.regularMarketTime  as number | undefined) ?? Math.floor(Date.now() / 1000);
+      const liveHigh   = (meta.regularMarketDayHigh   as number | undefined) ?? livePrice;
+      const liveLow    = (meta.regularMarketDayLow    as number | undefined) ?? livePrice;
+      const liveOpen   = (meta.regularMarketOpen      as number | undefined) ?? livePrice;
+      const liveVol    = (meta.regularMarketVolume    as number | undefined) ?? 0;
+
+      // Replace the last candle if it corresponds to today (within 24 h of liveTime),
+      // otherwise append. This handles both intraday and post-close scenarios.
+      const lastCandle = candles[candles.length - 1];
+      const sameDay    = lastCandle && Math.abs(lastCandle.t - liveTime) < 86_400;
+
+      const liveCandle: Candle = {
+        t: liveTime,
+        o: liveOpen,
+        h: liveHigh,
+        l: liveLow,
+        c: livePrice,
+        v: liveVol,
+      };
+
+      if (sameDay) {
+        candles[candles.length - 1] = liveCandle;
+      } else {
+        candles.push(liveCandle);
+      }
+    }
+
+    return candles;
   } catch {
     return [];
   }
