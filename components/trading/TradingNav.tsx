@@ -6,12 +6,12 @@ const NAV_ITEMS = [
   { href: '/market-sentiment', label: 'Sentiment',   short: 'Sent'     },
   { href: '/watchlist',        label: 'Watchlist',   short: 'Watch'    },
   { href: '/scanner',          label: 'Scanner',     short: 'Scan'     },
+  { href: '/journal',          label: 'Journal',     short: 'Journal'  },
   { href: '/screener',         label: 'Screener',    short: 'Screen'   },
   { href: '/recommendations',  label: 'Daily Picks', short: 'Picks'    },
   { href: '/trends',           label: 'Trends',      short: 'Trends'   },
   { href: '/alerts',           label: 'Alerts',      short: 'Alerts'   },
   { href: '/backtest',         label: 'Backtest',    short: 'BTest'    },
-  { href: '/journal',          label: 'Journal',     short: 'Journal'  },
 ];
 
 /**
