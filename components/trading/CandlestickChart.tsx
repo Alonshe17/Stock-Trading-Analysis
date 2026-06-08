@@ -204,6 +204,7 @@ export function CandlestickChart({
   const [activeRange, setActiveRange]     = useState<Range>(defaultRange);
   const [tooltip, setTooltip]             = useState<TooltipBar | null>(null);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [ema20On, setEma20On]             = useState(false);
 
   // Detect touch device once on mount
   useEffect(() => {
@@ -282,6 +283,17 @@ export function CandlestickChart({
             candles
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .map((c, i) => ({ time: c.t as any, value: ema50All[i] }))
+              .filter((d) => !isNaN(d.value) && visibleTimes.has(d.time as number)),
+          );
+        }
+
+        if (ema20On && candles.length >= 20) {
+          const ema20All = calcEma(candles.map((c) => c.c), 20);
+          const ema20Series = chart.addSeries(lc.LineSeries, { color: '#f97316', lineWidth: 1, title: 'EMA 20' });
+          ema20Series.setData(
+            candles
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .map((c, i) => ({ time: c.t as any, value: ema20All[i] }))
               .filter((d) => !isNaN(d.value) && visibleTimes.has(d.time as number)),
           );
         }
@@ -378,7 +390,7 @@ export function CandlestickChart({
       setTooltip(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, candles15m, height, expanded, activeRange]);
+  }, [candles, candles15m, height, expanded, activeRange, ema20On]);
 
   // Lock body scroll when expanded
   useEffect(() => {
@@ -408,7 +420,7 @@ export function CandlestickChart({
         {/* ── Title bar ──────────────────────────────────────────────────────── */}
         <div className="px-3 sm:px-4 py-2.5 border-b border-gray-800 flex flex-wrap items-center gap-x-3 gap-y-1.5 shrink-0">
           {/* Title + EMA legend */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
             {title && <span className="truncate text-sm font-medium text-gray-200">{title}</span>}
             {!is15mView && (
               <>
@@ -417,7 +429,21 @@ export function CandlestickChart({
                 ) : (
                   <span className="text-xs text-blue-400 whitespace-nowrap">— EMA 50</span>
                 )}
+                {ema20On && (
+                  <span className="text-xs text-orange-400 whitespace-nowrap">— EMA 20</span>
+                )}
                 <span className="text-xs text-amber-400 whitespace-nowrap">— EMA 200</span>
+                {/* EMA 20 toggle button */}
+                <button
+                  onClick={() => setEma20On((v) => !v)}
+                  className={`text-[11px] px-2 py-0.5 rounded border transition-colors whitespace-nowrap ${
+                    ema20On
+                      ? 'border-orange-500 bg-orange-500/20 text-orange-300'
+                      : 'border-gray-700 bg-gray-800 text-gray-500 hover:text-orange-400 hover:border-orange-600'
+                  }`}
+                >
+                  {ema20On ? '✓ EMA 20' : '+ EMA 20'}
+                </button>
               </>
             )}
             {is15mView && (
