@@ -205,6 +205,7 @@ export function CandlestickChart({
   const [tooltip, setTooltip]             = useState<TooltipBar | null>(null);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [ema20On, setEma20On]             = useState(false);
+  const [ema8On,  setEma8On]              = useState(false);
 
   // Detect touch device once on mount
   useEffect(() => {
@@ -283,6 +284,17 @@ export function CandlestickChart({
             candles
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .map((c, i) => ({ time: c.t as any, value: ema50All[i] }))
+              .filter((d) => !isNaN(d.value) && visibleTimes.has(d.time as number)),
+          );
+        }
+
+        if (ema8On && candles.length >= 8) {
+          const ema8All = calcEma(candles.map((c) => c.c), 8);
+          const ema8Series = chart.addSeries(lc.LineSeries, { color: '#a855f7', lineWidth: 1, title: 'EMA 8' });
+          ema8Series.setData(
+            candles
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .map((c, i) => ({ time: c.t as any, value: ema8All[i] }))
               .filter((d) => !isNaN(d.value) && visibleTimes.has(d.time as number)),
           );
         }
@@ -390,7 +402,7 @@ export function CandlestickChart({
       setTooltip(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, candles15m, height, expanded, activeRange, ema20On]);
+  }, [candles, candles15m, height, expanded, activeRange, ema20On, ema8On]);
 
   // Lock body scroll when expanded
   useEffect(() => {
@@ -429,10 +441,24 @@ export function CandlestickChart({
                 ) : (
                   <span className="text-xs text-blue-400 whitespace-nowrap">— EMA 50</span>
                 )}
+                {ema8On && (
+                  <span className="text-xs text-purple-400 whitespace-nowrap">— EMA 8</span>
+                )}
                 {ema20On && (
                   <span className="text-xs text-orange-400 whitespace-nowrap">— EMA 20</span>
                 )}
                 <span className="text-xs text-amber-400 whitespace-nowrap">— EMA 200</span>
+                {/* EMA 8 toggle button */}
+                <button
+                  onClick={() => setEma8On((v) => !v)}
+                  className={`text-[11px] px-2 py-0.5 rounded border transition-colors whitespace-nowrap ${
+                    ema8On
+                      ? 'border-purple-500 bg-purple-500/20 text-purple-300'
+                      : 'border-gray-700 bg-gray-800 text-gray-500 hover:text-purple-400 hover:border-purple-600'
+                  }`}
+                >
+                  {ema8On ? '✓ EMA 8' : '+ EMA 8'}
+                </button>
                 {/* EMA 20 toggle button */}
                 <button
                   onClick={() => setEma20On((v) => !v)}
