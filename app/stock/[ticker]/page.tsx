@@ -16,6 +16,7 @@ import { EarningsTable } from '@/components/trading/EarningsTable';
 import Link from 'next/link';
 import { TradingNav } from '@/components/trading/TradingNav';
 import { StockJournalPanel } from '@/components/trading/StockJournalPanel';
+import { AnalystWriteUp }    from '@/components/trading/AnalystWriteUp';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,6 +139,11 @@ export default async function StockPage({ params }: Props) {
             <FundamentalsPanel financials={financials} symbol={a.symbol} />
           </div>
         )}
+
+        {/* Analyst Deep Dive Write-Up */}
+        <div className="mt-6">
+          <AnalystWriteUp analysis={{ ...a, name: profile?.name ?? a.symbol, sector: profile?.sector ?? '' }} financials={financials} />
+        </div>
 
         {/* Historical Data */}
         <div className="mt-6">

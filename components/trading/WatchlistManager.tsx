@@ -18,6 +18,7 @@ const LS_KEY = 'swingmonitor_watchlist'; // legacy localStorage key (for one-tim
 
 type StockData = AnalysisResult & {
   name: string;
+  sector: string;
   marketRegime: string;
   earningsDate?: string | null;
   // Fundamentals from Finnhub (piped through analysis API route)
@@ -432,8 +433,35 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
     setRefreshingAll(false);
   }
 
+  // ── Build subsector groups from loaded data ────────────────────────────────
+  const subsectorGroups: Record<string, { symbol: string; signal: string }[]> = {};
+  for (const w of watchlist) {
+    const d = dataMap[w.symbol];
+    const raw = d?.sector?.trim() || 'Other';
+    // Normalise broad sector names into friendlier subsector labels
+    const label =
+      raw === 'Technology'            ? 'Technology' :
+      raw === 'Healthcare'            ? 'Healthcare' :
+      raw === 'Financial Services'    ? 'Financials' :
+      raw === 'Consumer Cyclical'     ? 'Consumer Cyclical' :
+      raw === 'Consumer Defensive'    ? 'Consumer Defensive' :
+      raw === 'Communication Services'? 'Communication' :
+      raw === 'Energy'                ? 'Energy' :
+      raw === 'Industrials'           ? 'Industrials' :
+      raw === 'Basic Materials'       ? 'Materials' :
+      raw === 'Real Estate'           ? 'Real Estate' :
+      raw === 'Utilities'             ? 'Utilities' :
+      raw === 'ETF'                   ? 'ETFs / Commodities' :
+      raw || 'Other';
+    if (!subsectorGroups[label]) subsectorGroups[label] = [];
+    subsectorGroups[label].push({ symbol: w.symbol, signal: d?.signal ?? 'WATCH' });
+  }
+  const sortedGroups = Object.entries(subsectorGroups).sort((a, b) => b[1].length - a[1].length);
+
   return (
-    <div>
+    <div className="flex gap-6">
+      {/* ── Main content (left) ─────────────────────────────────────────────── */}
+      <div className="flex-1 min-w-0">
       {/* ── Sync / Recover panel ──────────────────────────────────────────────── */}
       <div className="mb-5">
         <button
@@ -707,6 +735,63 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
           <p className="text-sm">Your watchlist is empty.</p>
           <p className="text-xs mt-1">Add a ticker above to get started.</p>
         </div>
+      )}
+      </div>{/* end main content */}
+
+      {/* ── Subsector sidebar (right) ─────────────────────────────────────── */}
+      {watchlist.length > 0 && (
+        <aside className="hidden lg:block w-56 flex-shrink-0">
+          <div className="sticky top-4 rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
+            <div className="px-3 py-2.5 border-b border-gray-800 bg-gray-900/80">
+              <p className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">By Sector</p>
+              <p className="text-[10px] text-gray-600">{watchlist.length} stocks · {sortedGroups.length} sectors</p>
+            </div>
+            <div className="p-2 space-y-1 max-h-[80vh] overflow-y-auto scrollbar-none">
+              {sortedGroups.length === 0 ? (
+                <p className="text-[10px] text-gray-600 px-2 py-3">Loading sector data…</p>
+              ) : (
+                sortedGroups.map(([sector, items]) => (
+                  <div key={sector} className="rounded-lg bg-gray-800/40 px-2.5 py-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 truncate">{sector}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {items.map(({ symbol, signal }) => (
+                        <a
+                          key={symbol}
+                          href={`/stock/${symbol}`}
+                          className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded transition hover:opacity-80 ${
+                            signal === 'BREAKOUT'    ? 'bg-emerald-900/60 text-emerald-300' :
+                            signal === 'PULLBACK'    ? 'bg-blue-900/60   text-blue-300'    :
+                            signal === 'AVOID'       ? 'bg-red-900/60    text-red-300'     :
+                            signal === 'MEAN_REVERT' ? 'bg-purple-900/60 text-purple-300'  :
+                            'bg-gray-700/60 text-gray-400'
+                          }`}
+                        >
+                          {symbol}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {/* Legend */}
+            <div className="px-3 py-2 border-t border-gray-800 space-y-0.5">
+              <p className="text-[9px] font-bold text-gray-600 uppercase tracking-wider mb-1">Signal Colors</p>
+              {[
+                { color: 'bg-emerald-900/60 text-emerald-300', label: 'Breakout' },
+                { color: 'bg-blue-900/60 text-blue-300',       label: 'Pullback' },
+                { color: 'bg-gray-700/60 text-gray-400',       label: 'Watch' },
+                { color: 'bg-purple-900/60 text-purple-300',   label: 'Mean Revert' },
+                { color: 'bg-red-900/60 text-red-300',         label: 'Avoid' },
+              ].map(({ color, label }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <span className={`text-[9px] px-1 rounded font-mono ${color}`}>eg</span>
+                  <span className="text-[9px] text-gray-600">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
       )}
     </div>
   );

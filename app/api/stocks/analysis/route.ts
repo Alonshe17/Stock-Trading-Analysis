@@ -53,7 +53,13 @@ export async function GET(req: NextRequest) {
       analystSell:      financials?.analystSell ?? 0,
     };
 
-    return NextResponse.json({ ...result, marketRegime, name: resolvedName, ...extra });
+    return NextResponse.json({
+      ...result,
+      marketRegime,
+      name:   resolvedName,
+      sector: profile?.sector ?? '',
+      ...extra,
+    });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
