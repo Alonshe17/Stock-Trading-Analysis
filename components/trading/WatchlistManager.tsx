@@ -746,7 +746,22 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
               <p className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">By Sector</p>
               <p className="text-[10px] text-gray-600">{watchlist.length} stocks · {sortedGroups.length} sectors</p>
             </div>
-            <div className="p-2 space-y-1 max-h-[80vh] overflow-y-auto scrollbar-none">
+            {/* Legend — at the top so it's always visible */}
+            <div className="px-3 py-2 border-b border-gray-800 bg-gray-900/40 flex flex-wrap gap-x-3 gap-y-0.5">
+              {[
+                { color: 'bg-emerald-900/60 text-emerald-300', label: 'Breakout' },
+                { color: 'bg-blue-900/60 text-blue-300',       label: 'Pullback' },
+                { color: 'bg-gray-700/60 text-gray-400',       label: 'Watch' },
+                { color: 'bg-purple-900/60 text-purple-300',   label: 'Mean Revert' },
+                { color: 'bg-red-900/60 text-red-300',         label: 'Avoid' },
+              ].map(({ color, label }) => (
+                <div key={label} className="flex items-center gap-1">
+                  <span className={`text-[9px] px-1 rounded font-mono ${color}`}>■</span>
+                  <span className="text-[9px] text-gray-500">{label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="p-2 space-y-1 max-h-[75vh] overflow-y-auto scrollbar-none">
               {sortedGroups.length === 0 ? (
                 <p className="text-[10px] text-gray-600 px-2 py-3">Loading sector data…</p>
               ) : (
@@ -773,22 +788,6 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
                   </div>
                 ))
               )}
-            </div>
-            {/* Legend */}
-            <div className="px-3 py-2 border-t border-gray-800 space-y-0.5">
-              <p className="text-[9px] font-bold text-gray-600 uppercase tracking-wider mb-1">Signal Colors</p>
-              {[
-                { color: 'bg-emerald-900/60 text-emerald-300', label: 'Breakout' },
-                { color: 'bg-blue-900/60 text-blue-300',       label: 'Pullback' },
-                { color: 'bg-gray-700/60 text-gray-400',       label: 'Watch' },
-                { color: 'bg-purple-900/60 text-purple-300',   label: 'Mean Revert' },
-                { color: 'bg-red-900/60 text-red-300',         label: 'Avoid' },
-              ].map(({ color, label }) => (
-                <div key={label} className="flex items-center gap-1.5">
-                  <span className={`text-[9px] px-1 rounded font-mono ${color}`}>eg</span>
-                  <span className="text-[9px] text-gray-600">{label}</span>
-                </div>
-              ))}
             </div>
           </div>
         </aside>
