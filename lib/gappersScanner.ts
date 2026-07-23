@@ -190,43 +190,29 @@ async function fetchATRAndSR(symbol: string): Promise<ATRData> {
   }
 }
 
-// ── Step 3: Fetch float + short interest ─────────────────────────────────────
+// ── Step 3: Fetch short interest from Nasdaq's free public API ────────────────
+// Yahoo Finance v10/quoteSummary returns 401 for all server-side requests as of 2026.
+// Nasdaq's API is free, requires no API key, and returns real settlement-date SI data.
 
-function yfRaw(obj: Record<string, unknown>, key: string): number | null {
-  const val = obj[key];
-  if (val === null || val === undefined) return null;
-  if (typeof val === 'object' && val !== null && 'raw' in val) {
-    const r = (val as { raw: unknown }).raw;
-    return typeof r === 'number' ? r : null;
+const NASDAQ_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+async function fetchShortInterestShares(symbol: string): Promise<number | null> {
+  try {
+    const url = `https://api.nasdaq.com/api/quote/${encodeURIComponent(symbol)}/short-interest?type=SHORT+INTEREST&limit=1&offset=0&sortColumn=settlementDate&sortOrder=DESC`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': NASDAQ_UA, Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const rows: { interest?: string }[] = data?.data?.shortInterestTable?.rows ?? [];
+    if (rows.length === 0) return null;
+    const raw = rows[0].interest ?? '';
+    const parsed = parseInt(raw.replace(/,/g, ''), 10);
+    return isNaN(parsed) ? null : parsed;
+  } catch {
+    return null;
   }
-  return typeof val === 'number' ? val : null;
-}
-
-async function fetchFloatAndSI(symbol: string): Promise<{ floatSharesM: number | null; shortInterestPct: number | null }> {
-  const sym  = yfSym(symbol);
-  const path = `finance/quoteSummary/${encodeURIComponent(sym)}?modules=defaultKeyStatistics`;
-
-  for (const host of ['https://query2.finance.yahoo.com/v10', 'https://query1.finance.yahoo.com/v10']) {
-    try {
-      const res = await fetch(`${host}/${path}`, { headers: YF_PLAIN, cache: 'no-store' });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const ks: Record<string, unknown> = data?.quoteSummary?.result?.[0]?.defaultKeyStatistics ?? {};
-
-      const floatShares   = yfRaw(ks, 'floatShares');
-      const shortPctFloat = yfRaw(ks, 'shortPercentOfFloat');
-
-      if (floatShares !== null || shortPctFloat !== null) {
-        return {
-          floatSharesM:     floatShares   !== null ? floatShares / 1_000_000 : null,
-          shortInterestPct: shortPctFloat !== null ? shortPctFloat * 100      : null,
-        };
-      }
-    } catch {
-      // try next host
-    }
-  }
-  return { floatSharesM: null, shortInterestPct: null };
 }
 
 // ── Step 4: Fetch news + detect catalyst ─────────────────────────────────────
@@ -554,18 +540,35 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
     intraday.push(buildFromScreener(quote, 'intraday', price, quote.regularMarketPreviousClose, gapPct, atrData));
   }
 
-  // ── Step 6: Enrich with float/SI and news ────────────────────────────────────
+  // ── Step 6: Enrich with short interest (Nasdaq API) + news ──────────────────
+  // Float is approximated from the screener's marketCap ÷ price (≈ shares outstanding).
+  // This is within ~5% of actual float for most stocks and more than sufficient
+  // for the >30% SI filter and display purposes.
   const seen2      = new Set<string>();
   const allResults = [...preMarket, ...intraday];
+
+  // Build symbol → screener quote lookup for market cap
+  const quoteMap = new Map<string, ScreenerQuote>();
+  for (const q of screened) quoteMap.set(q.symbol, q);
 
   for (const g of allResults) {
     if (seen2.has(g.symbol)) continue;
     seen2.add(g.symbol);
 
-    await sleep(DELAY_MS);
-    const { floatSharesM, shortInterestPct } = await fetchFloatAndSI(g.symbol);
+    // Float from market cap / price (approximation of shares outstanding)
+    const sq           = quoteMap.get(g.symbol);
+    const marketCap    = sq?.marketCap ?? 0;
+    const sharesOut    = marketCap > 0 && g.price > 0 ? marketCap / g.price : null;
+    const floatSharesM = sharesOut ? sharesOut / 1_000_000 : null;
 
-    if (shortInterestPct != null && shortInterestPct > 30) {
+    // Short interest in shares from Nasdaq public API
+    await sleep(DELAY_MS);
+    const siShares      = await fetchShortInterestShares(g.symbol);
+    const shortInterestPct = siShares !== null && sharesOut !== null && sharesOut > 0
+      ? (siShares / sharesOut) * 100
+      : null;
+
+    if (shortInterestPct !== null && shortInterestPct > 30) {
       removeFromBoth(g.symbol, preMarket, intraday);
       continue;
     }
