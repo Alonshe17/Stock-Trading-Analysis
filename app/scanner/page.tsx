@@ -32,7 +32,7 @@ const _prevWeekday = () => {
 };
 
 const _cache = {
-  tab:          'prebreakout' as Tab,
+  tab:          'gappers' as Tab,
   momResults:   null as ScanResult[] | null,
   momScannedAt: null as Date | null,
   volResults:   null as VolumeScanResult[] | null,
