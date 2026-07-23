@@ -1,19 +1,98 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import type { GapperResult, CatalystType, TradingStrategy } from '@/lib/gappersScanner';
 
+// ── Market session detection (client-side ET) ─────────────────────────────────
+
+type Session = {
+  label: 'Pre-Market' | 'Market Open' | 'After Hours' | 'Market Closed';
+  color: string;
+  dot: string;
+  active: boolean; // true = some form of trading happening
+};
+
+function getMarketSession(): Session {
+  const now   = new Date();
+  const etStr = now.toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  const [hStr, mStr] = etStr.split(':');
+  const etTime = parseInt(hStr, 10) + parseInt(mStr, 10) / 60;
+
+  if (etTime >= 4 && etTime < 9.5)  return { label: 'Pre-Market',    color: 'text-amber-400',  dot: 'bg-amber-400',   active: true  };
+  if (etTime >= 9.5 && etTime < 16) return { label: 'Market Open',   color: 'text-emerald-400', dot: 'bg-emerald-400', active: true  };
+  if (etTime >= 16 && etTime < 20)  return { label: 'After Hours',   color: 'text-orange-400', dot: 'bg-orange-400',  active: true  };
+  return                                     { label: 'Market Closed', color: 'text-gray-500',   dot: 'bg-gray-600',    active: false };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 type Props = {
-  preMarket: GapperResult[];
-  intraday:  GapperResult[];
+  preMarket:    GapperResult[];
+  intraday:     GapperResult[];
+  onRefresh:    () => void;
+  isRefreshing: boolean;
+  lastRefreshed: Date | null;
 };
 
 type SubTab = 'pre-market' | 'intraday';
 
-export function GappersWatchlist({ preMarket, intraday }: Props) {
-  const [subTab, setSubTab] = useState<SubTab>('pre-market');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+// Seconds to wait after a scan finishes before auto-starting the next one.
+const AUTO_REFRESH_COOLDOWN = 45;
+
+export function GappersWatchlist({ preMarket, intraday, onRefresh, isRefreshing, lastRefreshed }: Props) {
+  const [subTab,    setSubTab]   = useState<SubTab>('pre-market');
+  const [expanded,  setExpanded] = useState<Set<string>>(new Set());
+  const [session,   setSession]  = useState<Session>(getMarketSession());
+  const [countdown, setCountdown] = useState(AUTO_REFRESH_COOLDOWN);
+
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshRef  = useRef<ReturnType<typeof setTimeout>  | null>(null);
+
+  // Update market session every 30 s
+  useEffect(() => {
+    const id = setInterval(() => setSession(getMarketSession()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── Auto-refresh logic (intraday tab only) ────────────────────────────────
+  // When a scan finishes: start a 45-second countdown, then fire the next scan.
+  const clearTimers = useCallback(() => {
+    if (cooldownRef.current) { clearInterval(cooldownRef.current);  cooldownRef.current = null; }
+    if (refreshRef.current)  { clearTimeout(refreshRef.current);    refreshRef.current  = null; }
+  }, []);
+
+  useEffect(() => {
+    // Only auto-refresh on the intraday tab, and only when not already refreshing
+    if (subTab !== 'intraday' || isRefreshing || !lastRefreshed) {
+      clearTimers();
+      return;
+    }
+
+    setCountdown(AUTO_REFRESH_COOLDOWN);
+
+    // Countdown ticker
+    cooldownRef.current = setInterval(() => {
+      setCountdown(prev => Math.max(0, prev - 1));
+    }, 1_000);
+
+    // Trigger next scan after cooldown
+    refreshRef.current = setTimeout(() => {
+      clearTimers();
+      onRefresh();
+    }, AUTO_REFRESH_COOLDOWN * 1_000);
+
+    return clearTimers;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRefreshing, subTab, lastRefreshed]);
+
+  // Clear timers when switching away from intraday tab
+  useEffect(() => {
+    if (subTab !== 'intraday') clearTimers();
+  }, [subTab, clearTimers]);
 
   const rows = subTab === 'pre-market' ? preMarket : intraday;
 
@@ -24,27 +103,92 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
       return next;
     });
 
+  const isPreMarketSession = session.label === 'Pre-Market';
+  const isLiveSession      = session.label === 'Market Open' || session.label === 'After Hours';
+
   return (
     <div>
-      {/* Sub-tab switcher */}
-      <div className="flex gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 mb-5 w-fit">
-        <SubTabBtn active={subTab === 'pre-market'} onClick={() => setSubTab('pre-market')}>
-          🌅 Pre-Market Gappers
-          <span className="ml-1.5 text-[10px] rounded-full px-1.5 py-0.5 bg-gray-700 text-gray-400">
-            {preMarket.length}
+      {/* ── Market session banner ── */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex items-center gap-2 rounded-lg bg-gray-900 border border-gray-800 px-3 py-1.5">
+          <span className={`inline-block h-2 w-2 rounded-full ${session.dot} ${session.active ? 'animate-pulse' : ''}`} />
+          <span className={`text-xs font-semibold ${session.color}`}>{session.label}</span>
+          <span className="text-[10px] text-gray-600">US/Eastern</span>
+        </div>
+        {isPreMarketSession && (
+          <span className="text-[11px] text-amber-400/80 bg-amber-900/20 border border-amber-800/30 rounded-md px-2 py-1">
+            Pre-market active — run the scan now to capture gap data before the 9:30 AM open
           </span>
-        </SubTabBtn>
-        <SubTabBtn active={subTab === 'intraday'} onClick={() => setSubTab('intraday')}>
-          ⚡ Intraday Gappers (LIVE)
-          <span className="ml-1.5 text-[10px] rounded-full px-1.5 py-0.5 bg-gray-700 text-gray-400">
-            {intraday.length}
+        )}
+        {session.label === 'Market Closed' && (
+          <span className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-md px-2 py-1">
+            Market closed — pre-market opens at 4:00 AM ET
           </span>
-        </SubTabBtn>
+        )}
       </div>
 
-      {rows.length === 0 ? (
+      {/* ── Sub-tab switcher ── */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="flex gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 w-fit">
+          <SubTabBtn active={subTab === 'pre-market'} onClick={() => setSubTab('pre-market')}>
+            🌅 Pre-Market Gappers
+            <CountBadge n={preMarket.length} />
+          </SubTabBtn>
+          <SubTabBtn active={subTab === 'intraday'} onClick={() => setSubTab('intraday')}>
+            <span className="flex items-center gap-1.5">
+              {isLiveSession && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+              Intraday Gappers (LIVE)
+            </span>
+            <CountBadge n={intraday.length} />
+          </SubTabBtn>
+        </div>
+
+        {/* Refresh controls */}
+        <div className="flex items-center gap-2 ml-auto">
+          {subTab === 'intraday' && !isRefreshing && lastRefreshed && (
+            <span className="text-[11px] text-gray-500">
+              Next refresh in <span className="text-gray-300 font-mono">{countdown}s</span>
+            </span>
+          )}
+          {subTab === 'intraday' && isRefreshing && (
+            <span className="flex items-center gap-1.5 text-[11px] text-blue-400">
+              <Spinner sm /> Refreshing…
+            </span>
+          )}
+          <button
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-300 transition"
+          >
+            <RefreshIcon spinning={isRefreshing} />
+            {subTab === 'pre-market' ? 'Refresh' : 'Refresh Now'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Pre-market context note ── */}
+      {subTab === 'pre-market' && (
+        <div className="rounded-lg bg-amber-950/20 border border-amber-800/30 px-4 py-2.5 mb-4 text-[11px] text-amber-300/80 leading-relaxed">
+          <strong className="text-amber-300">Pre-Market session: 4:00 AM – 9:30 AM ET.</strong>
+          {' '}Gap % is measured from the previous session close to the stock&apos;s current pre-market price.
+          Run this scan between 4 AM and 9:30 AM ET for the freshest data.
+          Outside those hours, results reflect the most recent pre-market trade on file.
+        </div>
+      )}
+
+      {/* ── Intraday context note ── */}
+      {subTab === 'intraday' && (
+        <div className="rounded-lg bg-blue-950/20 border border-blue-800/30 px-4 py-2.5 mb-4 text-[11px] text-blue-300/80 leading-relaxed">
+          <strong className="text-blue-300">Live Intraday — auto-refreshes every ~{AUTO_REFRESH_COOLDOWN}s.</strong>
+          {' '}Gap % is measured from the previous session close to the current traded price.
+          The scan takes 60–90 s to run; the countdown above shows when the next scan fires.
+        </div>
+      )}
+
+      {/* ── Table or empty state ── */}
+      {rows.length === 0 && !isRefreshing ? (
         <div className="rounded-xl border border-dashed border-gray-800 p-12 text-center text-gray-600">
-          <p className="text-sm">No {subTab === 'pre-market' ? 'pre-market' : 'intraday'} gappers found matching all criteria.</p>
+          <p className="text-sm">No {subTab === 'pre-market' ? 'pre-market' : 'intraday'} gappers matching all criteria.</p>
           <p className="text-xs mt-1 text-gray-700">
             Filters: ≥ 2% gap · ≥ 50K shares traded · avg vol &gt; 500K · ATR ≥ $0.50 · short interest ≤ 30%
           </p>
@@ -66,31 +210,30 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
                 <th className="px-3 py-3 text-left">Catalyst</th>
                 <th className="px-3 py-3 text-left">Strategy</th>
                 <th className="px-3 py-3 text-center">Risk</th>
-                <th className="px-3 py-3 text-center w-8"></th>
+                <th className="px-3 py-3 w-6" />
               </tr>
             </thead>
             <tbody>
               {rows.map((g, i) => {
-                const key      = `${g.symbol}-${subTab}`;
-                const isOpen   = expanded.has(key);
-                const isUp     = g.gapDirection === 'up';
-                const gapColor = isUp ? 'text-emerald-400' : 'text-red-400';
-                const rowBg    = i % 2 === 0 ? 'bg-gray-950' : 'bg-gray-900/40';
+                const key    = `${g.symbol}-${subTab}`;
+                const isOpen = expanded.has(key);
+                const isUp   = g.gapDirection === 'up';
+                const rowBg  = i % 2 === 0 ? 'bg-gray-950' : 'bg-gray-900/40';
 
                 return (
                   <>
                     <tr
                       key={key}
-                      className={`${rowBg} border-b border-gray-800/50 hover:bg-gray-800/40 cursor-pointer transition-colors`}
                       onClick={() => toggle(key)}
+                      className={`${rowBg} border-b border-gray-800/50 hover:bg-gray-800/40 cursor-pointer transition-colors`}
                     >
-                      {/* Symbol + name */}
+                      {/* Symbol */}
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2">
                           <Link
                             href={`/stock/${g.symbol}`}
                             onClick={e => e.stopPropagation()}
-                            className="font-bold text-white hover:text-blue-400 transition-colors text-sm"
+                            className="font-bold text-white hover:text-blue-400 transition-colors"
                           >
                             {g.symbol}
                           </Link>
@@ -104,11 +247,11 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
                       </td>
 
                       {/* Gap % */}
-                      <td className={`px-3 py-2.5 text-right font-bold ${gapColor}`}>
+                      <td className={`px-3 py-2.5 text-right font-bold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
                         {isUp ? '+' : ''}{g.gapPct.toFixed(2)}%
                       </td>
 
-                      {/* Volume today */}
+                      {/* Volume */}
                       <td className="px-3 py-2.5 text-right">
                         <div className="text-gray-200 font-mono">{fmtVol(g.volumeToday)}</div>
                         <div className="text-[10px] text-gray-500">{g.volRatio.toFixed(2)}× avg</div>
@@ -133,12 +276,10 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
                         ) : '—'}
                       </td>
 
-                      {/* Support / Resistance */}
+                      {/* S / R */}
                       <td className="px-3 py-2.5 text-center">
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-[10px] text-emerald-500">R ${g.resistance.toFixed(2)}</span>
-                          <span className="text-[10px] text-red-500">S ${g.support.toFixed(2)}</span>
-                        </div>
+                        <span className="text-[10px] text-emerald-500 block">R ${g.resistance.toFixed(2)}</span>
+                        <span className="text-[10px] text-red-500   block">S ${g.support.toFixed(2)}</span>
                       </td>
 
                       {/* Sector */}
@@ -175,20 +316,17 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
                         <RiskBadge level={g.riskLevel} />
                       </td>
 
-                      {/* Expand toggle */}
-                      <td className="px-3 py-2.5 text-center">
-                        <span className="text-gray-600 text-xs select-none">
-                          {isOpen ? '▲' : '▼'}
-                        </span>
+                      {/* Chevron */}
+                      <td className="px-3 py-2.5 text-center text-gray-600 text-xs select-none">
+                        {isOpen ? '▲' : '▼'}
                       </td>
                     </tr>
 
-                    {/* Expanded detail row */}
+                    {/* Expanded detail */}
                     {isOpen && (
                       <tr key={`${key}-detail`} className={`${rowBg} border-b border-gray-700`}>
                         <td colSpan={13} className="px-4 py-4">
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
                             {/* Strategy note */}
                             <div className="rounded-lg bg-gray-900 border border-gray-700 p-3">
                               <div className="flex items-center gap-2 mb-2">
@@ -196,15 +334,13 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
                                 <StrategyBadge strategy={g.suggestedStrategy} />
                               </div>
                               <p className="text-xs text-gray-400 leading-relaxed">{g.strategyNote}</p>
-
-                              {/* Key metrics row */}
                               <div className="grid grid-cols-3 gap-2 mt-3">
-                                <MiniStat label="Prev Close"   value={`$${g.prevClose.toFixed(2)}`} />
-                                <MiniStat label="ATR (14d)"    value={`$${g.atr.toFixed(2)}`} />
-                                <MiniStat label="Avg Vol"      value={fmtVol(g.avgDailyVolume)} />
-                                <MiniStat label="Support"      value={`$${g.support.toFixed(2)}`}    color="text-red-400" />
-                                <MiniStat label="Resistance"   value={`$${g.resistance.toFixed(2)}`} color="text-emerald-400" />
-                                <MiniStat label="Vol Ratio"    value={`${g.volRatio.toFixed(2)}×`}   color={g.volRatio > 1.5 ? 'text-amber-400' : 'text-gray-300'} />
+                                <MiniStat label="Prev Close"  value={`$${g.prevClose.toFixed(2)}`} />
+                                <MiniStat label="ATR (14d)"   value={`$${g.atr.toFixed(2)}`} />
+                                <MiniStat label="Avg Vol"     value={fmtVol(g.avgDailyVolume)} />
+                                <MiniStat label="Support"     value={`$${g.support.toFixed(2)}`}    color="text-red-400" />
+                                <MiniStat label="Resistance"  value={`$${g.resistance.toFixed(2)}`} color="text-emerald-400" />
+                                <MiniStat label="Vol Ratio"   value={`${g.volRatio.toFixed(2)}×`}   color={g.volRatio > 1.5 ? 'text-amber-400' : 'text-gray-300'} />
                               </div>
                             </div>
 
@@ -216,7 +352,6 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
                               </div>
                               <p className="text-xs text-gray-400 leading-relaxed">{g.fundamentalCatalyst}</p>
 
-                              {/* News link */}
                               {g.newsHeadline && g.newsHeadline !== 'No recent news found' && (
                                 <a
                                   href={g.newsUrl}
@@ -236,17 +371,16 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
                                 </a>
                               )}
 
-                              {/* Float / SI detail */}
                               {(g.floatSharesM != null || g.shortInterestPct != null) && (
-                                <div className="flex gap-4 mt-3">
+                                <div className="flex gap-6 mt-3">
                                   {g.floatSharesM != null && (
                                     <div>
                                       <p className="text-[10px] text-gray-500 uppercase tracking-wider">Float</p>
                                       <p className="text-sm font-semibold text-gray-200">{g.floatSharesM.toFixed(1)}M shares</p>
                                       <p className="text-[10px] text-gray-600">
-                                        {g.floatSharesM < 20  ? 'Very small float — explosive moves possible' :
-                                         g.floatSharesM < 100 ? 'Small-mid float — elevated volatility' :
-                                                                  'Large float — institutional-driven moves'}
+                                        {g.floatSharesM < 20  ? 'Very small — explosive moves possible' :
+                                         g.floatSharesM < 100 ? 'Small-mid — elevated volatility' :
+                                                                  'Large — institutional-driven'}
                                       </p>
                                     </div>
                                   )}
@@ -258,8 +392,7 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
                                       </p>
                                       <p className="text-[10px] text-gray-600">
                                         {g.shortInterestPct > 25 ? 'Very high — squeeze risk elevated' :
-                                         g.shortInterestPct > 15 ? 'Elevated — watch for short covering' :
-                                                                    'Normal range'}
+                                         g.shortInterestPct > 15 ? 'Elevated — watch for covering' : 'Normal range'}
                                       </p>
                                     </div>
                                   )}
@@ -279,20 +412,20 @@ export function GappersWatchlist({ preMarket, intraday }: Props) {
       )}
 
       <p className="mt-4 text-xs text-gray-700">
-        Data from Yahoo Finance. For educational purposes only — not financial advice.
-        Pre-market gaps measured vs previous session close. Intraday gaps measured from previous close to current price.
+        Data from Yahoo Finance · Educational purposes only · Not financial advice ·
+        Pre-market gaps: prev close → pre-market price · Intraday gaps: prev close → current price
       </p>
     </div>
   );
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
+// ── Small helpers ─────────────────────────────────────────────────────────────
 
 function SubTabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center ${
+      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 ${
         active ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
       }`}
     >
@@ -301,28 +434,58 @@ function SubTabBtn({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
+function CountBadge({ n }: { n: number }) {
+  return (
+    <span className="ml-1 text-[10px] rounded-full px-1.5 py-0.5 bg-gray-700 text-gray-400">
+      {n}
+    </span>
+  );
+}
+
+function Spinner({ sm }: { sm?: boolean }) {
+  const sz = sm ? 'h-3 w-3' : 'h-4 w-4';
+  return (
+    <svg className={`${sz} animate-spin`} fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+    </svg>
+  );
+}
+
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      className={`h-3.5 w-3.5 ${spinning ? 'animate-spin' : ''}`}
+      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+  );
+}
+
 function CatalystBadge({ type }: { type: CatalystType }) {
   const colors: Record<string, string> = {
-    'Earnings Beat':         'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-    'Earnings Miss':         'bg-red-500/20 text-red-300 border-red-500/40',
-    'Earnings Report':       'bg-blue-500/20 text-blue-300 border-blue-500/40',
-    'FDA Approval':          'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-    'FDA Rejection':         'bg-red-500/20 text-red-300 border-red-500/40',
-    'FDA Catalyst':          'bg-purple-500/20 text-purple-300 border-purple-500/40',
-    'M&A / Acquisition':     'bg-blue-500/20 text-blue-300 border-blue-500/40',
-    'Partnership / Alliance':'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-    'Major Contract':        'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-    'Analyst Upgrade':       'bg-emerald-900/30 text-emerald-400 border-emerald-700/40',
-    'Analyst Downgrade':     'bg-red-900/30 text-red-400 border-red-700/40',
-    'Price Target Raise':    'bg-emerald-900/20 text-emerald-500 border-emerald-800/40',
-    'Stock Split':           'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
-    'Share Buyback':         'bg-violet-500/20 text-violet-300 border-violet-500/40',
-    'Debt Offering':         'bg-amber-500/20 text-amber-300 border-amber-500/40',
+    'Earnings Beat':          'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+    'Earnings Miss':          'bg-red-500/20 text-red-300 border-red-500/40',
+    'Earnings Report':        'bg-blue-500/20 text-blue-300 border-blue-500/40',
+    'FDA Approval':           'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+    'FDA Rejection':          'bg-red-500/20 text-red-300 border-red-500/40',
+    'FDA Catalyst':           'bg-purple-500/20 text-purple-300 border-purple-500/40',
+    'M&A / Acquisition':      'bg-blue-500/20 text-blue-300 border-blue-500/40',
+    'Partnership / Alliance': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+    'Major Contract':         'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+    'Analyst Upgrade':        'bg-emerald-900/30 text-emerald-400 border-emerald-700/40',
+    'Analyst Downgrade':      'bg-red-900/30 text-red-400 border-red-700/40',
+    'Price Target Raise':     'bg-emerald-900/20 text-emerald-500 border-emerald-800/40',
+    'Stock Split':            'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+    'Share Buyback':          'bg-violet-500/20 text-violet-300 border-violet-500/40',
+    'Debt Offering':          'bg-amber-500/20 text-amber-300 border-amber-500/40',
     'Restructuring / Layoffs':'bg-amber-900/30 text-amber-400 border-amber-700/40',
-    'Management Change':     'bg-slate-500/20 text-slate-300 border-slate-500/40',
-    'Product Launch':        'bg-sky-500/20 text-sky-300 border-sky-500/40',
-    'Short Squeeze Setup':   'bg-orange-500/20 text-orange-300 border-orange-500/40',
-    'Unknown / Sector Move': 'bg-gray-800 text-gray-400 border-gray-700/40',
+    'Management Change':      'bg-slate-500/20 text-slate-300 border-slate-500/40',
+    'Product Launch':         'bg-sky-500/20 text-sky-300 border-sky-500/40',
+    'Short Squeeze Setup':    'bg-orange-500/20 text-orange-300 border-orange-500/40',
+    'Unknown / Sector Move':  'bg-gray-800 text-gray-400 border-gray-700/40',
   };
   const cls = colors[type] ?? 'bg-gray-800 text-gray-400 border-gray-700/40';
   return (

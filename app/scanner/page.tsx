@@ -346,17 +346,21 @@ export default function ScannerPage() {
               )}
             </div>
 
-            {gapLoading && (
+            {gapError && <ErrorBanner msg={gapError} />}
+            {gapPreMarket != null ? (
+              <GappersWatchlist
+                preMarket={gapPreMarket}
+                intraday={gapIntraday ?? []}
+                onRefresh={runGappersScan}
+                isRefreshing={gapLoading}
+                lastRefreshed={gapScannedAt}
+              />
+            ) : gapLoading ? (
               <ScanningState
                 text="Scanning ~95 stocks for pre-market and intraday gaps…"
                 note="Fetching quotes, ATR, float, short interest, and news for each candidate. Takes 60–90 seconds."
               />
-            )}
-            {gapError && <ErrorBanner msg={gapError} />}
-            {gapPreMarket != null && !gapLoading && (
-              <GappersWatchlist preMarket={gapPreMarket} intraday={gapIntraday ?? []} />
-            )}
-            {gapPreMarket == null && !gapLoading && (
+            ) : (
               <EmptyState
                 label="Run Gappers Scan"
                 note="Finds pre-market and intraday gappers with catalyst detection, strategy recommendation, and fundamental analysis."
