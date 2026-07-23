@@ -12,6 +12,8 @@
  */
 
 import { ensureYFSession, yfHeaders, withCrumb, yfSym } from './yfClient';
+// Note: yfHeaders/withCrumb are used only in fetchQuoteData (v8/chart endpoint).
+// fetchFloatAndSI uses YF_PLAIN headers instead — see comment there.
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const DELAY_MS = 130;
@@ -277,35 +279,56 @@ async function fetchQuoteData(symbol: string): Promise<QuoteData | null> {
 }
 
 // ── Step 2: Fetch float + short interest ─────────────────────────────────────
+// Uses plain browser headers without a crumb — mirrors the pattern in
+// yahoofetch.ts (fetchYahooFundamentals) which is known to work server-side.
+// withCrumb() / yfHeaders() are intentionally NOT used here because the crumb
+// session is frequently invalid by the time these enrichment calls run.
+
+const YF_PLAIN = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  Accept: 'application/json, text/plain, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+  Referer: 'https://finance.yahoo.com/',
+};
+
+function yfRaw(obj: Record<string, unknown>, key: string): number | null {
+  const val = obj[key];
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'object' && val !== null && 'raw' in val) {
+    const r = (val as { raw: unknown }).raw;
+    return typeof r === 'number' ? r : null;
+  }
+  return typeof val === 'number' ? val : null;
+}
 
 async function fetchFloatAndSI(symbol: string): Promise<{ floatSharesM: number | null; shortInterestPct: number | null }> {
-  try {
-    const sym = yfSym(symbol);
-    const url = withCrumb(
-      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=defaultKeyStatistics`
-    );
-    const res = await fetch(url, { headers: yfHeaders(), cache: 'no-store' });
-    if (!res.ok) return { floatSharesM: null, shortInterestPct: null };
-    const data = await res.json();
-    const ks = data?.quoteSummary?.result?.[0]?.defaultKeyStatistics ?? {};
+  const sym  = yfSym(symbol);
+  const path = `finance/quoteSummary/${encodeURIComponent(sym)}?modules=defaultKeyStatistics`;
 
-    function raw(key: string): number | null {
-      const val = ks[key];
-      if (!val) return null;
-      if (typeof val === 'object' && 'raw' in val) return typeof val.raw === 'number' ? val.raw : null;
-      return typeof val === 'number' ? val : null;
+  // Try query2 first, fall back to query1
+  for (const host of ['https://query2.finance.yahoo.com/v10', 'https://query1.finance.yahoo.com/v10']) {
+    try {
+      const res = await fetch(`${host}/${path}`, { headers: YF_PLAIN, cache: 'no-store' });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const ks: Record<string, unknown> = data?.quoteSummary?.result?.[0]?.defaultKeyStatistics ?? {};
+
+      const floatShares   = yfRaw(ks, 'floatShares');
+      const shortPctFloat = yfRaw(ks, 'shortPercentOfFloat');
+
+      // Only return if we got at least one field
+      if (floatShares !== null || shortPctFloat !== null) {
+        return {
+          floatSharesM:     floatShares   !== null ? floatShares / 1_000_000 : null,
+          shortInterestPct: shortPctFloat !== null ? shortPctFloat * 100      : null,
+        };
+      }
+    } catch {
+      // try next host
     }
-
-    const floatShares    = raw('floatShares');
-    const shortPctFloat  = raw('shortPercentOfFloat');
-
-    return {
-      floatSharesM:    floatShares   != null ? floatShares / 1_000_000 : null,
-      shortInterestPct: shortPctFloat != null ? shortPctFloat * 100 : null,  // → %
-    };
-  } catch {
-    return { floatSharesM: null, shortInterestPct: null };
   }
+
+  return { floatSharesM: null, shortInterestPct: null };
 }
 
 // ── Step 3: Fetch news + detect catalyst ─────────────────────────────────────
