@@ -169,10 +169,13 @@ export function GappersWatchlist({ preMarket, intraday, onRefresh, isRefreshing,
       {/* ── Pre-market context note ── */}
       {subTab === 'pre-market' && (
         <div className="rounded-lg bg-amber-950/20 border border-amber-800/30 px-4 py-2.5 mb-4 text-[11px] text-amber-300/80 leading-relaxed">
-          <strong className="text-amber-300">Pre-Market session: 4:00 AM – 9:30 AM ET.</strong>
-          {' '}Gap % is measured from the previous session close to the stock&apos;s current pre-market price.
-          Run this scan between 4 AM and 9:30 AM ET for the freshest data.
-          Outside those hours, results reflect the most recent pre-market trade on file.
+          {isPreMarketSession ? (
+            <><strong className="text-amber-300">Pre-Market active (4:00 AM – 9:30 AM ET).</strong>
+            {' '}Gap % is measured from the previous session close to the stock&apos;s current pre-market price. Results update every refresh.</>
+          ) : (
+            <><strong className="text-amber-300">Gap at Open.</strong>
+            {' '}Pre-market prices clear when the market opens at 9:30 AM ET. This tab now shows stocks that <em>opened with a gap</em> vs the previous close — the price jump that occurred at the 9:30 AM bell. These are the same gappers day traders acted on at open.</>
+          )}
         </div>
       )}
 

@@ -221,7 +221,10 @@ type QuoteData = {
   prevClose: number;
   regularMarketVolume: number;
   avgDailyVolume: number;
+  /** Live pre-market price (4–9:30 AM ET). Null after open. */
   preMarketPrice: number | null;
+  /** Today's opening candle price (available after 9:30 AM ET open). */
+  todayOpenPrice: number | null;
   atr: number;
   support: number;
   resistance: number;
@@ -272,7 +275,12 @@ async function fetchQuoteData(symbol: string): Promise<QuoteData | null> {
     const preMarketPrice      = meta.preMarketPrice ?? null;
     const name                = meta.longName ?? meta.shortName ?? symbol;
 
-    return { regularMarketPrice, prevClose, regularMarketVolume, avgDailyVolume, preMarketPrice, atr, support, resistance, name };
+    // Today's open from the last daily candle — available during & after market hours
+    // when Yahoo has already built today's candle from actual trading.
+    const lastCandle   = candles.length > 0 ? candles[candles.length - 1] : null;
+    const todayOpenPrice = (lastCandle && lastCandle.o > 0) ? lastCandle.o : null;
+
+    return { regularMarketPrice, prevClose, regularMarketVolume, avgDailyVolume, preMarketPrice, todayOpenPrice, atr, support, resistance, name };
   } catch {
     return null;
   }
@@ -553,15 +561,19 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
     // Volume filter: ≥ 50K today
     if (q.regularMarketVolume < 50_000) continue;
 
-    // Pre-market gap
-    if (q.preMarketPrice != null && q.prevClose > 0) {
-      const pmGapPct = ((q.preMarketPrice - q.prevClose) / q.prevClose) * 100;
+    // Pre-market gap:
+    //   • During pre-market hours (4–9:30 AM ET): preMarketPrice is live
+    //   • During/after market hours: preMarketPrice is null — fall back to
+    //     today's opening candle price, which IS the gap that occurred at open
+    const pmPrice = q.preMarketPrice ?? q.todayOpenPrice;
+    if (pmPrice != null && q.prevClose > 0) {
+      const pmGapPct = ((pmPrice - q.prevClose) / q.prevClose) * 100;
       if (Math.abs(pmGapPct) >= 2) {
-        preMarket.push(buildPlaceholder(stock, 'pre-market', q.preMarketPrice, q.prevClose, pmGapPct, q));
+        preMarket.push(buildPlaceholder(stock, 'pre-market', pmPrice, q.prevClose, pmGapPct, q));
       }
     }
 
-    // Intraday gap
+    // Intraday gap — live current price vs previous close
     if (q.prevClose > 0) {
       const idGapPct = ((q.regularMarketPrice - q.prevClose) / q.prevClose) * 100;
       if (Math.abs(idGapPct) >= 2) {
