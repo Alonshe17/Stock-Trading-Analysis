@@ -8,6 +8,7 @@ import { PreBreakoutResults } from '@/components/trading/PreBreakoutResults';
 import { WeeklyVolumeResults } from '@/components/trading/WeeklyVolumeResults';
 import { DayBuyVolumeResults } from '@/components/trading/DayBuyVolumeResults';
 import { EarningsResults } from '@/components/trading/EarningsResults';
+import { GappersWatchlist } from '@/components/trading/GappersWatchlist';
 import { TradingNav } from '@/components/trading/TradingNav';
 import type { ScanResult } from '@/lib/intraday';
 import type { VolumeScanResult } from '@/lib/volumeScanner';
@@ -15,8 +16,9 @@ import type { PreBreakoutResult } from '@/lib/preBreakout';
 import type { WeeklyVolumeResult } from '@/lib/weeklyVolumeScanner';
 import type { DayBuyVolumeResult } from '@/lib/dayBuyVolumeScanner';
 import type { EarningsResult } from '@/lib/earningsScanner';
+import type { GapperResult } from '@/lib/gappersScanner';
 
-type Tab = 'momentum' | 'volume' | 'prebreakout' | 'weekly' | 'daybuy' | 'earnings';
+type Tab = 'momentum' | 'volume' | 'prebreakout' | 'weekly' | 'daybuy' | 'earnings' | 'gappers';
 
 // ── Module-level cache ─────────────────────────────────────────────────────────
 // Lives outside React — survives component unmount/remount from client-side
@@ -47,6 +49,10 @@ const _cache = {
   dbvScannedAt: null as Date | null,
   dbvStartDate: _prevWeekday(),
   dbvEndDate:   new Date().toISOString().split('T')[0],
+  // Gappers
+  gapPreMarket: null as GapperResult[] | null,
+  gapIntraday:  null as GapperResult[] | null,
+  gapScannedAt: null as Date | null,
 };
 
 export default function ScannerPage() {
@@ -109,6 +115,16 @@ export default function ScannerPage() {
   const setDbvScannedAt = (v: Date | null)                  => { _cache.dbvScannedAt = v; setDbvScannedAtState(v); };
   const setDbvEndDate   = (v: string)                       => { _cache.dbvEndDate   = v; setDbvEndDateState(v); };
   const setDbvStartDate = (v: string)                       => { _cache.dbvStartDate = v; setDbvStartDateState(v); };
+
+  // ── Gappers scanner state ──
+  const [gapPreMarket,   setGapPreMarketState]   = useState<GapperResult[] | null>(_cache.gapPreMarket);
+  const [gapIntraday,    setGapIntradayState]    = useState<GapperResult[] | null>(_cache.gapIntraday);
+  const [gapLoading,     setGapLoading]          = useState(false);
+  const [gapError,       setGapError]            = useState('');
+  const [gapScannedAt,   setGapScannedAtState]   = useState<Date | null>(_cache.gapScannedAt);
+  const setGapPreMarket  = (v: GapperResult[] | null) => { _cache.gapPreMarket = v; setGapPreMarketState(v); };
+  const setGapIntraday   = (v: GapperResult[] | null) => { _cache.gapIntraday  = v; setGapIntradayState(v); };
+  const setGapScannedAt  = (v: Date | null)           => { _cache.gapScannedAt = v; setGapScannedAtState(v); };
 
   async function runMomentumScan() {
     setMomLoading(true); setMomError('');
@@ -192,6 +208,23 @@ export default function ScannerPage() {
     }
   }
 
+  async function runGappersScan() {
+    setGapLoading(true); setGapError('');
+    try {
+      const res = await fetch('/api/scanner/gappers');
+      if (!res.ok) throw new Error('Scan failed');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setGapPreMarket(data.preMarket ?? []);
+      setGapIntraday(data.intraday  ?? []);
+      setGapScannedAt(new Date());
+    } catch (e) {
+      setGapError(e instanceof Error ? e.message : 'Scan failed — try again');
+    } finally {
+      setGapLoading(false);
+    }
+  }
+
   async function runPreBreakoutScan() {
     setPbLoading(true); setPbError('');
     try {
@@ -225,6 +258,9 @@ export default function ScannerPage() {
 
         {/* Tab switcher */}
         <div className="flex flex-wrap gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 mb-6 w-fit">
+          <TabButton active={tab === 'gappers'} onClick={() => setTab('gappers')}>
+            🎯 Gappers Watchlist
+          </TabButton>
           <TabButton active={tab === 'prebreakout'} onClick={() => setTab('prebreakout')}>
             🚀 Pre-Breakout Setup
           </TabButton>
@@ -244,6 +280,90 @@ export default function ScannerPage() {
             ⚡ Momentum Scanner
           </TabButton>
         </div>
+
+        {/* ── GAPPERS TAB ── */}
+        {tab === 'gappers' && (
+          <>
+            {/* Methodology explainer */}
+            <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4 mb-5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                How It Works — Pre-Market & Intraday Gap Watchlist
+              </p>
+              <p className="text-xs text-gray-500 leading-relaxed mb-3">
+                Scans ~95 high-volatility US stocks for meaningful gaps from the previous session close.
+                Automatically detects the news catalyst, suggests a day-trading strategy, and flags fundamental events
+                (earnings, FDA, M&amp;A, partnerships, stock splits, buybacks). Click any row to expand the full strategy note and catalyst detail.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <CriteriaCard label="Min Gap"      value="≥ 2% from close"    color="text-blue-400" />
+                <CriteriaCard label="Vol Today"    value="≥ 50K shares"       color="text-blue-400" />
+                <CriteriaCard label="Avg Daily Vol" value="> 500K shares"     color="text-blue-400" />
+                <CriteriaCard label="ATR (14d)"    value="≥ $0.50"            color="text-blue-400" />
+                <CriteriaCard label="Short Interest" value="≤ 30% of float"  color="text-blue-400" />
+              </div>
+            </div>
+
+            {/* Strategy legend */}
+            <div className="flex flex-wrap gap-2 mb-5">
+              {[
+                { label: 'Gap and Go',                   color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', note: 'Strong catalyst — ride the momentum' },
+                { label: 'ORB',                          color: 'bg-blue-500/20 text-blue-300 border-blue-500/40',         note: 'Extreme gap — wait for range break' },
+                { label: 'Gap Fill / Reversal',          color: 'bg-amber-500/20 text-amber-300 border-amber-500/40',     note: 'Small gap on weak catalyst' },
+                { label: 'VWAP Reclaim',                 color: 'bg-purple-500/20 text-purple-300 border-purple-500/40',  note: 'Lower-risk confirmation entry' },
+                { label: 'Fade the Gap',                 color: 'bg-red-500/20 text-red-300 border-red-500/40',           note: 'Short the pop on weak catalyst' },
+                { label: 'Short Squeeze Watch',          color: 'bg-orange-500/20 text-orange-300 border-orange-500/40', note: 'High SI + gap = explosive upside' },
+                { label: 'Momentum Continuation',        color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',       note: 'Small float / strong trend' },
+              ].map(s => (
+                <span key={s.label} className={`px-3 py-1.5 rounded-full border text-[11px] font-semibold ${s.color}`}>
+                  {s.label} <span className="opacity-50 font-normal">· {s.note}</span>
+                </span>
+              ))}
+            </div>
+
+            {/* Run button */}
+            <div className="flex items-center gap-4 mb-5">
+              <button
+                onClick={runGappersScan}
+                disabled={gapLoading}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 text-sm font-semibold text-white transition"
+              >
+                {gapLoading ? (
+                  <><Spinner /> Scanning (~60–90 seconds)…</>
+                ) : (
+                  <><SearchIcon /> Run Gappers Scan</>
+                )}
+              </button>
+
+              {gapScannedAt && !gapLoading && (
+                <span className="text-xs text-gray-500">
+                  Last scanned {gapScannedAt.toLocaleTimeString()}
+                  {gapPreMarket != null && (
+                    <span className="ml-2 text-gray-400">
+                      · {gapPreMarket.length} pre-market · {gapIntraday?.length ?? 0} intraday
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+
+            {gapLoading && (
+              <ScanningState
+                text="Scanning ~95 stocks for pre-market and intraday gaps…"
+                note="Fetching quotes, ATR, float, short interest, and news for each candidate. Takes 60–90 seconds."
+              />
+            )}
+            {gapError && <ErrorBanner msg={gapError} />}
+            {gapPreMarket != null && !gapLoading && (
+              <GappersWatchlist preMarket={gapPreMarket} intraday={gapIntraday ?? []} />
+            )}
+            {gapPreMarket == null && !gapLoading && (
+              <EmptyState
+                label="Run Gappers Scan"
+                note="Finds pre-market and intraday gappers with catalyst detection, strategy recommendation, and fundamental analysis."
+              />
+            )}
+          </>
+        )}
 
         {/* ── PRE-BREAKOUT TAB ── */}
         {tab === 'prebreakout' && (
