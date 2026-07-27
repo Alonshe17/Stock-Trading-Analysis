@@ -290,7 +290,7 @@ export default function ScannerPage() {
                 How It Works — Pre-Market & Intraday Gap Watchlist
               </p>
               <p className="text-xs text-gray-500 leading-relaxed mb-3">
-                Scans ~95 high-volatility US stocks for meaningful gaps from the previous session close.
+                Scans the entire US equity market (top gainers, losers &amp; most-active) for meaningful gaps from the previous session close.
                 Automatically detects the news catalyst, suggests a day-trading strategy, and flags fundamental events
                 (earnings, FDA, M&amp;A, partnerships, stock splits, buybacks). Click any row to expand the full strategy note and catalyst detail.
               </p>
