@@ -20,7 +20,7 @@ import { ensureYFSession, yfHeaders, withCrumb, yfSym } from './yfClient';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const DELAY_MS = 60;
-const MAX_CANDIDATES = 15; // keep well within Vercel Hobby 60 s limit
+const MAX_CANDIDATES = 10; // keep well within Vercel Hobby 60 s limit
 
 // Wraps fetch with a hard timeout so one slow API call never blocks the scanner
 function fetchWithTimeout(url: string, opts: RequestInit, ms = 5000): Promise<Response> {
@@ -455,13 +455,6 @@ function buildFromScreener(
   };
 }
 
-function removeFromBoth(symbol: string, ...arrays: GapperResult[][]): void {
-  for (const arr of arrays) {
-    const idx = arr.findIndex(g => g.symbol === symbol);
-    if (idx !== -1) arr.splice(idx, 1);
-  }
-}
-
 // ── Main scanner ──────────────────────────────────────────────────────────────
 
 export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; intraday: GapperResult[] }> {
@@ -534,7 +527,7 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
   ];
 
   const atrMap = new Map<string, ATRData>();
-  const BATCH  = 3;
+  const BATCH  = 5;
   for (let i = 0; i < allSymbols.length; i += BATCH) {
     const batch = allSymbols.slice(i, i + BATCH);
     const results = await Promise.all(batch.map(s => fetchATRAndSR(s)));
@@ -546,71 +539,79 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
   const preMarket: GapperResult[] = [];
   const intraday:  GapperResult[] = [];
 
-  for (const { quote, price, gapPct } of pmCandidates) {
+  for (const { quote, price, gapPct } of pmCandidates.slice(0, MAX_CANDIDATES)) {
     const atrData = atrMap.get(quote.symbol) ?? { atr: 0, support: 0, resistance: 0 };
     if (atrData.atr > 0 && atrData.atr < 0.50) continue; // ATR filter (skip only if we got data)
     preMarket.push(buildFromScreener(quote, 'pre-market', price, quote.regularMarketPreviousClose, gapPct, atrData));
   }
 
-  for (const { quote, price, gapPct } of idCandidates) {
+  for (const { quote, price, gapPct } of idCandidates.slice(0, MAX_CANDIDATES)) {
     const atrData = atrMap.get(quote.symbol) ?? { atr: 0, support: 0, resistance: 0 };
     if (atrData.atr > 0 && atrData.atr < 0.50) continue;
     intraday.push(buildFromScreener(quote, 'intraday', price, quote.regularMarketPreviousClose, gapPct, atrData));
   }
 
   // ── Step 6: Enrich with short interest (Nasdaq API) + news ──────────────────
-  // Float is approximated from the screener's marketCap ÷ price (≈ shares outstanding).
-  // This is within ~5% of actual float for most stocks and more than sufficient
-  // for the >30% SI filter and display purposes.
-  const seen2      = new Set<string>();
-  const allResults = [...preMarket, ...intraday];
-
-  // Build symbol → screener quote lookup for market cap
+  // Float is approximated from screener's marketCap ÷ price (≈ shares outstanding).
   const quoteMap = new Map<string, ScreenerQuote>();
   for (const q of screened) quoteMap.set(q.symbol, q);
 
-  for (const g of allResults) {
-    if (seen2.has(g.symbol)) continue;
-    seen2.add(g.symbol);
+  // Collect unique symbols across both result lists
+  const uniqueSymbols = [...new Set([...preMarket, ...intraday].map(g => g.symbol))];
+  const siMap   = new Map<string, number | null>();
+  const newsMap = new Map<string, NewsData>();
+  const ENRICH_BATCH = 5;
 
-    // Float from market cap / price (approximation of shares outstanding)
-    const sq           = quoteMap.get(g.symbol);
-    const marketCap    = sq?.marketCap ?? 0;
-    const sharesOut    = marketCap > 0 && g.price > 0 ? marketCap / g.price : null;
-    const floatSharesM = sharesOut ? sharesOut / 1_000_000 : null;
+  // Fetch SI + news in parallel batches (SI and news fetched simultaneously per batch)
+  for (let i = 0; i < uniqueSymbols.length; i += ENRICH_BATCH) {
+    const batch = uniqueSymbols.slice(i, i + ENRICH_BATCH);
+    const [siArr, newsArr] = await Promise.all([
+      Promise.all(batch.map(s => fetchShortInterestShares(s))),
+      Promise.all(batch.map(s => fetchNews(s))),
+    ]);
+    batch.forEach((s, j) => { siMap.set(s, siArr[j]); newsMap.set(s, newsArr[j]); });
+    if (i + ENRICH_BATCH < uniqueSymbols.length) await sleep(DELAY_MS);
+  }
 
-    // Short interest in shares from Nasdaq public API
-    await sleep(DELAY_MS);
-    const siShares      = await fetchShortInterestShares(g.symbol);
-    const shortInterestPct = siShares !== null && sharesOut !== null && sharesOut > 0
-      ? (siShares / sharesOut) * 100
-      : null;
+  // Apply enrichment data; collect symbols to remove (SI > 30%)
+  const toRemove = new Set<string>();
 
-    if (shortInterestPct !== null && shortInterestPct > 30) {
-      removeFromBoth(g.symbol, preMarket, intraday);
-      continue;
-    }
+  for (const arr of [preMarket, intraday]) {
+    for (const g of arr) {
+      if (toRemove.has(g.symbol)) continue;
 
-    await sleep(DELAY_MS);
-    const news = await fetchNews(g.symbol);
+      const sq        = quoteMap.get(g.symbol);
+      const marketCap = sq?.marketCap ?? 0;
+      const sharesOut = marketCap > 0 && g.price > 0 ? marketCap / g.price : null;
+      g.floatSharesM  = sharesOut ? sharesOut / 1_000_000 : null;
 
-    for (const arr of [preMarket, intraday]) {
-      const idx = arr.findIndex(x => x.symbol === g.symbol);
-      if (idx === -1) continue;
-      const row = arr[idx];
+      const siShares     = siMap.get(g.symbol) ?? null;
+      g.shortInterestPct = siShares !== null && sharesOut !== null && sharesOut > 0
+        ? (siShares / sharesOut) * 100 : null;
 
-      row.floatSharesM     = floatSharesM;
-      row.shortInterestPct = shortInterestPct;
-      Object.assign(row, news);
+      if (g.shortInterestPct !== null && g.shortInterestPct > 30) {
+        toRemove.add(g.symbol);
+        continue;
+      }
+
+      const news = newsMap.get(g.symbol);
+      if (news) Object.assign(g, news);
 
       const { strategy, note, riskLevel } = selectStrategy(
-        row.price, row.gapPct, row.gapDirection, row.catalystType,
-        row.avgDailyVolume, row.shortInterestPct, row.atr, row.floatSharesM,
-        row.resistance, row.support,
+        g.price, g.gapPct, g.gapDirection, g.catalystType,
+        g.avgDailyVolume, g.shortInterestPct, g.atr, g.floatSharesM,
+        g.resistance, g.support,
       );
-      row.suggestedStrategy = strategy;
-      row.strategyNote      = note;
-      row.riskLevel         = riskLevel;
+      g.suggestedStrategy = strategy;
+      g.strategyNote      = note;
+      g.riskLevel         = riskLevel;
+    }
+  }
+
+  // Remove high-SI stocks in-place from both lists
+  for (const arr of [preMarket, intraday]) {
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (toRemove.has(arr[i].symbol)) arr.splice(i, 1);
     }
   }
 
