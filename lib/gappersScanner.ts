@@ -20,7 +20,6 @@ import { ensureYFSession, yfHeaders, withCrumb, yfSym } from './yfClient';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const DELAY_MS = 60;
-const MAX_CANDIDATES = 10; // keep well within Vercel Hobby 60 s limit
 
 // Wraps fetch with a hard timeout so one slow API call never blocks the scanner
 function fetchWithTimeout(url: string, opts: RequestInit, ms = 5000): Promise<Response> {
@@ -521,13 +520,13 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
 
   const allSymbols = [
     ...new Set([
-      ...pmCandidates.slice(0, MAX_CANDIDATES).map(c => c.quote.symbol),
-      ...idCandidates.slice(0, MAX_CANDIDATES).map(c => c.quote.symbol),
+      ...pmCandidates.map(c => c.quote.symbol),
+      ...idCandidates.map(c => c.quote.symbol),
     ]),
   ];
 
   const atrMap = new Map<string, ATRData>();
-  const BATCH  = 5;
+  const BATCH  = 10;
   for (let i = 0; i < allSymbols.length; i += BATCH) {
     const batch = allSymbols.slice(i, i + BATCH);
     const results = await Promise.all(batch.map(s => fetchATRAndSR(s)));
@@ -539,13 +538,13 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
   const preMarket: GapperResult[] = [];
   const intraday:  GapperResult[] = [];
 
-  for (const { quote, price, gapPct } of pmCandidates.slice(0, MAX_CANDIDATES)) {
+  for (const { quote, price, gapPct } of pmCandidates) {
     const atrData = atrMap.get(quote.symbol) ?? { atr: 0, support: 0, resistance: 0 };
     if (atrData.atr > 0 && atrData.atr < 0.50) continue; // ATR filter (skip only if we got data)
     preMarket.push(buildFromScreener(quote, 'pre-market', price, quote.regularMarketPreviousClose, gapPct, atrData));
   }
 
-  for (const { quote, price, gapPct } of idCandidates.slice(0, MAX_CANDIDATES)) {
+  for (const { quote, price, gapPct } of idCandidates) {
     const atrData = atrMap.get(quote.symbol) ?? { atr: 0, support: 0, resistance: 0 };
     if (atrData.atr > 0 && atrData.atr < 0.50) continue;
     intraday.push(buildFromScreener(quote, 'intraday', price, quote.regularMarketPreviousClose, gapPct, atrData));
@@ -560,9 +559,9 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
   const uniqueSymbols = [...new Set([...preMarket, ...intraday].map(g => g.symbol))];
   const siMap   = new Map<string, number | null>();
   const newsMap = new Map<string, NewsData>();
-  const ENRICH_BATCH = 5;
+  const ENRICH_BATCH = 10;
 
-  // Fetch SI + news in parallel batches (SI and news fetched simultaneously per batch)
+  // Fetch SI + news in parallel batches of 10 (SI and news fetched simultaneously)
   for (let i = 0; i < uniqueSymbols.length; i += ENRICH_BATCH) {
     const batch = uniqueSymbols.slice(i, i + ENRICH_BATCH);
     const [siArr, newsArr] = await Promise.all([
