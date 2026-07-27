@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { runGappersScanner } from '@/lib/gappersScanner';
 
 export const dynamic     = 'force-dynamic';
-export const maxDuration = 120;
+export const maxDuration = 60; // Vercel Hobby plan max
 
 export async function GET() {
   try {

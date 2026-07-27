@@ -19,7 +19,16 @@
 import { ensureYFSession, yfHeaders, withCrumb, yfSym } from './yfClient';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-const DELAY_MS = 120;
+const DELAY_MS = 60;
+const MAX_CANDIDATES = 15; // keep well within Vercel Hobby 60 s limit
+
+// Wraps fetch with a hard timeout so one slow API call never blocks the scanner
+function fetchWithTimeout(url: string, opts: RequestInit, ms = 5000): Promise<Response> {
+  const ctrl = new AbortController();
+  const id   = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal })
+    .finally(() => clearTimeout(id));
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -127,7 +136,7 @@ async function fetchScreener(scrId: string, count = 100): Promise<ScreenerQuote[
   const path = `/v1/finance/screener/predefined/saved?formatted=false&lang=en-US&region=US&scrIds=${scrId}&count=${count}&start=0`;
   for (const base of ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com']) {
     try {
-      const res = await fetch(`${base}${path}`, { headers: YF_PLAIN, cache: 'no-store' });
+      const res = await fetchWithTimeout(`${base}${path}`, { headers: YF_PLAIN, cache: 'no-store' }, 8000);
       if (!res.ok) continue;
       const data = await res.json();
       const quotes: ScreenerQuote[] = data?.finance?.result?.[0]?.quotes ?? [];
@@ -161,7 +170,7 @@ async function fetchATRAndSR(symbol: string): Promise<ATRData> {
     const url = withCrumb(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1mo`
     );
-    const res = await fetch(url, { headers: yfHeaders(), cache: 'no-store' });
+    const res = await fetchWithTimeout(url, { headers: yfHeaders(), cache: 'no-store' }, 5000);
     if (!res.ok) return { atr: 0, support: 0, resistance: 0 };
     const data = await res.json();
     const result = data?.chart?.result?.[0];
@@ -199,10 +208,10 @@ const NASDAQ_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 
 async function fetchShortInterestShares(symbol: string): Promise<number | null> {
   try {
     const url = `https://api.nasdaq.com/api/quote/${encodeURIComponent(symbol)}/short-interest?type=SHORT+INTEREST&limit=1&offset=0&sortColumn=settlementDate&sortOrder=DESC`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { 'User-Agent': NASDAQ_UA, Accept: 'application/json' },
       cache: 'no-store',
-    });
+    }, 5000);
     if (!res.ok) return null;
     const data = await res.json();
     const rows: { interest?: string }[] = data?.data?.shortInterestTable?.rows ?? [];
@@ -238,7 +247,7 @@ async function fetchNews(symbol: string): Promise<NewsData> {
 
   try {
     const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&newsCount=5&enableFuzzyQuery=false&type=news`;
-    const res = await fetch(url, { headers: yfHeaders(), cache: 'no-store' });
+    const res = await fetchWithTimeout(url, { headers: yfHeaders(), cache: 'no-store' }, 5000);
     if (!res.ok) return fallback;
     const data = await res.json();
     const news: { title?: string; link?: string; publisher?: string; providerPublishTime?: number }[] = data?.news ?? [];
@@ -512,16 +521,25 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
     }
   }
 
-  // ── Step 4: Fetch ATR + S/R for all unique gap candidates ────────────────────
-  const allSymbols = new Set([
-    ...pmCandidates.map(c => c.quote.symbol),
-    ...idCandidates.map(c => c.quote.symbol),
-  ]);
+  // ── Step 4: Fetch ATR + S/R — parallel batches of 3, capped at MAX_CANDIDATES ─
+  // Sort each list by absolute gap % so we enrich the biggest movers first.
+  pmCandidates.sort((a, b) => Math.abs(b.gapPct) - Math.abs(a.gapPct));
+  idCandidates.sort((a, b) => Math.abs(b.gapPct) - Math.abs(a.gapPct));
+
+  const allSymbols = [
+    ...new Set([
+      ...pmCandidates.slice(0, MAX_CANDIDATES).map(c => c.quote.symbol),
+      ...idCandidates.slice(0, MAX_CANDIDATES).map(c => c.quote.symbol),
+    ]),
+  ];
 
   const atrMap = new Map<string, ATRData>();
-  for (const symbol of allSymbols) {
-    await sleep(DELAY_MS);
-    atrMap.set(symbol, await fetchATRAndSR(symbol));
+  const BATCH  = 3;
+  for (let i = 0; i < allSymbols.length; i += BATCH) {
+    const batch = allSymbols.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(s => fetchATRAndSR(s)));
+    batch.forEach((s, j) => atrMap.set(s, results[j]));
+    if (i + BATCH < allSymbols.length) await sleep(DELAY_MS);
   }
 
   // ── Step 5: Apply ATR filter and build result rows ────────────────────────────
