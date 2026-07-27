@@ -223,6 +223,31 @@ async function fetchShortInterestShares(symbol: string): Promise<number | null> 
   }
 }
 
+// ── Step 3b: Batch-fetch sector + industry via v7/finance/quote ───────────────
+// The predefined screener endpoints don't include sector in their response.
+// v7/finance/quote returns it for up to 100 symbols per call with plain headers.
+
+async function fetchSectorMap(symbols: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (symbols.length === 0) return map;
+  const CHUNK = 100;
+  for (let i = 0; i < symbols.length; i += CHUNK) {
+    const chunk = symbols.slice(i, i + CHUNK);
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${chunk.join(',')}&formatted=false`;
+    try {
+      const res = await fetchWithTimeout(url, { headers: YF_PLAIN, cache: 'no-store' }, 8000);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const quotes: { symbol: string; sector?: string }[] = data?.quoteResponse?.result ?? [];
+      for (const q of quotes) {
+        if (q.sector) map.set(q.symbol, q.sector);
+      }
+    } catch { /* proceed without sector for this chunk */ }
+    if (i + CHUNK < symbols.length) await sleep(DELAY_MS);
+  }
+  return map;
+}
+
 // ── Step 4: Fetch news + detect catalyst ─────────────────────────────────────
 
 type NewsData = {
@@ -474,6 +499,12 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
       seenSyms.add(q.symbol);
       allQuotes.push(q);
     }
+  }
+
+  // ── Step 1b: Enrich screener quotes with sector data ─────────────────────────
+  const sectorMap = await fetchSectorMap(allQuotes.map(q => q.symbol));
+  for (const q of allQuotes) {
+    if (!q.sector) q.sector = sectorMap.get(q.symbol);
   }
 
   // ── Step 2: Quick pre-filter ─────────────────────────────────────────────────
