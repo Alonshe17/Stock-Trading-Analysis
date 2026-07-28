@@ -80,6 +80,7 @@ export type GapperResult = {
   volRatio: number;
 
   atr: number;
+  marketCap: number;
   floatSharesM: number | null;
   shortInterestPct: number | null;
 
@@ -463,6 +464,7 @@ function buildFromScreener(
     avgDailyVolume:   avgVol,
     volRatio:         avgVol > 0 ? quote.regularMarketVolume / avgVol : 0,
     atr:              atrData.atr,
+    marketCap:        quote.marketCap ?? 0,
     floatSharesM:     null,
     shortInterestPct: null,
     support,
