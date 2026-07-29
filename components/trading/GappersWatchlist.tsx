@@ -28,7 +28,14 @@ function getMarketSession(): Session {
   return                                     { label: 'Market Closed', color: 'text-gray-500',    dot: 'bg-gray-600',    active: false };
 }
 
-// ── Category helpers ──────────────────────────────────────────────────────────
+// ── Category / display helpers ────────────────────────────────────────────────
+
+function floatRotationLabel(r: number): { label: string; color: string } {
+  if (r >= 3)  return { label: 'Very High',  color: 'text-emerald-400' };
+  if (r >= 2)  return { label: 'High',        color: 'text-emerald-500' };
+  if (r >= 1)  return { label: 'Moderate',    color: 'text-amber-400'   };
+  return               { label: 'Low',         color: 'text-gray-500'    };
+}
 
 function floatCategory(floatM: number | null): { label: string; color: string } | null {
   if (floatM == null) return null;
@@ -67,8 +74,8 @@ function exportCsv(rows: GapperResult[], tabLabel: string) {
     'Price','Prev Close',
     'Vol Today','Avg Daily Vol','Vol Ratio',
     'Market Cap','Market Cap Category',
-    'Float (M shares)','Float Category',
-    'ATR','Short Interest %',
+    'Float (M shares)','Float Category','Float Rotation',
+    'ATR','Short Interest %','P/E Ratio',
     'Support','Resistance',
     'Catalyst','Strategy','Risk Level',
     'News Headline','News Source','News Age','News URL',
@@ -91,8 +98,10 @@ function exportCsv(rows: GapperResult[], tabLabel: string) {
         g.volumeToday, g.avgDailyVolume, g.volRatio.toFixed(2),
         g.marketCap > 0 ? g.marketCap : '', capCat,
         g.floatSharesM != null ? g.floatSharesM.toFixed(1) : '', floatCat,
+        g.floatRotation != null ? g.floatRotation.toFixed(2) : '',
         g.atr.toFixed(2),
         g.shortInterestPct != null ? g.shortInterestPct.toFixed(1) : '',
+        g.peRatio != null ? g.peRatio.toFixed(1) : '',
         g.support.toFixed(2), g.resistance.toFixed(2),
         g.catalystType, g.suggestedStrategy, g.riskLevel,
         g.newsHeadline, g.newsSource, g.newsAge, g.newsUrl,
@@ -163,6 +172,11 @@ export function GappersWatchlist({ preMarket, intraday, onRefresh, isRefreshing,
   useEffect(() => {
     if (subTab !== 'intraday') clearTimers();
   }, [subTab, clearTimers]);
+
+  // Auto-switch to pre-market tab when NYSE pre-market session starts
+  useEffect(() => {
+    if (session.label === 'Pre-Market') setSubTab('pre-market');
+  }, [session.label]);
 
   const rows = subTab === 'pre-market' ? preMarket : intraday;
 
@@ -277,7 +291,7 @@ export function GappersWatchlist({ preMarket, intraday, onRefresh, isRefreshing,
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-800">
-          <table className="w-full text-sm border-collapse min-w-[1380px]">
+          <table className="w-full text-sm border-collapse min-w-[1580px]">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-900/80 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                 <th className="px-3 py-3 text-left">Symbol</th>
@@ -286,8 +300,10 @@ export function GappersWatchlist({ preMarket, intraday, onRefresh, isRefreshing,
                 <th className="px-3 py-3 text-right">Vol Today</th>
                 <th className="px-3 py-3 text-right">Market Cap</th>
                 <th className="px-3 py-3 text-right">Float</th>
+                <th className="px-3 py-3 text-right">Float Rotation</th>
                 <th className="px-3 py-3 text-right">ATR</th>
                 <th className="px-3 py-3 text-right">Short %</th>
+                <th className="px-3 py-3 text-right">P/E</th>
                 <th className="px-3 py-3 text-center">Support / Resist</th>
                 <th className="px-3 py-3 text-left">Sector</th>
                 <th className="px-3 py-3 text-left">Catalyst</th>
@@ -362,6 +378,19 @@ export function GappersWatchlist({ preMarket, intraday, onRefresh, isRefreshing,
                         ) : <span className="text-gray-600">—</span>}
                       </td>
 
+                      {/* Float Rotation */}
+                      <td className="px-3 py-2.5 text-right">
+                        {g.floatRotation != null ? (() => {
+                          const rl = floatRotationLabel(g.floatRotation);
+                          return (
+                            <>
+                              <div className={`font-mono text-xs font-bold ${rl.color}`}>{g.floatRotation.toFixed(1)}×</div>
+                              <div className={`text-[10px] ${rl.color}`}>{rl.label}</div>
+                            </>
+                          );
+                        })() : <span className="text-gray-600">—</span>}
+                      </td>
+
                       {/* ATR */}
                       <td className="px-3 py-2.5 text-right font-mono text-gray-300 text-xs">
                         ${g.atr.toFixed(2)}
@@ -374,6 +403,17 @@ export function GappersWatchlist({ preMarket, intraday, onRefresh, isRefreshing,
                             {g.shortInterestPct.toFixed(1)}%
                           </span>
                         ) : <span className="text-gray-600">—</span>}
+                      </td>
+
+                      {/* P/E Ratio */}
+                      <td className="px-3 py-2.5 text-right">
+                        {g.peRatio != null ? (
+                          <span className={`font-mono text-xs ${
+                            g.peRatio < 15 ? 'text-emerald-400' :
+                            g.peRatio < 30 ? 'text-gray-300'   :
+                            g.peRatio < 50 ? 'text-amber-400'  : 'text-red-400'
+                          }`}>{g.peRatio.toFixed(1)}×</span>
+                        ) : <span className="text-gray-600">N/A</span>}
                       </td>
 
                       {/* S / R */}
@@ -425,7 +465,7 @@ export function GappersWatchlist({ preMarket, intraday, onRefresh, isRefreshing,
                     {/* Expanded detail */}
                     {isOpen && (
                       <tr key={`${key}-detail`} className={`${rowBg} border-b border-gray-700`}>
-                        <td colSpan={14} className="px-4 py-4">
+                        <td colSpan={16} className="px-4 py-4">
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             {/* Strategy note */}
                             <div className="rounded-lg bg-gray-900 border border-gray-700 p-3">
@@ -485,6 +525,36 @@ export function GappersWatchlist({ preMarket, intraday, onRefresh, isRefreshing,
                                     <p className="text-[10px] text-gray-500 uppercase tracking-wider">Float</p>
                                     <p className="text-sm font-semibold text-gray-200">{g.floatSharesM.toFixed(1)}M shares</p>
                                     <p className={`text-[10px] font-semibold ${fltCat.color}`}>{fltCat.label}</p>
+                                  </div>
+                                )}
+                                {g.floatRotation != null && (() => {
+                                  const rl = floatRotationLabel(g.floatRotation);
+                                  return (
+                                    <div>
+                                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Float Rotation</p>
+                                      <p className={`text-sm font-semibold font-mono ${rl.color}`}>{g.floatRotation.toFixed(2)}×</p>
+                                      <p className={`text-[10px] ${rl.color}`}>
+                                        {g.floatRotation >= 3 ? 'Very high — extremely active vs float' :
+                                         g.floatRotation >= 2 ? 'High — strong intraday momentum' :
+                                         g.floatRotation >= 1 ? 'Moderate — float turned over once' :
+                                                                  'Low — limited intraday interest'}
+                                      </p>
+                                    </div>
+                                  );
+                                })()}
+                                {g.peRatio != null && (
+                                  <div>
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">P/E Ratio (TTM)</p>
+                                    <p className={`text-sm font-semibold font-mono ${
+                                      g.peRatio < 15 ? 'text-emerald-400' :
+                                      g.peRatio < 30 ? 'text-gray-200'   :
+                                      g.peRatio < 50 ? 'text-amber-400'  : 'text-red-400'
+                                    }`}>{g.peRatio.toFixed(1)}×</p>
+                                    <p className="text-[10px] text-gray-600">
+                                      {g.peRatio < 15 ? 'Value territory' :
+                                       g.peRatio < 30 ? 'Fair value' :
+                                       g.peRatio < 50 ? 'Growth premium' : 'Highly valued / speculative'}
+                                    </p>
                                   </div>
                                 )}
                                 {g.shortInterestPct != null && (

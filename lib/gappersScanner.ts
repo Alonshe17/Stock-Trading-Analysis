@@ -82,7 +82,9 @@ export type GapperResult = {
   atr: number;
   marketCap: number;
   floatSharesM: number | null;
+  floatRotation: number | null;
   shortInterestPct: number | null;
+  peRatio: number | null;
 
   support: number;
   resistance: number;
@@ -130,6 +132,7 @@ type ScreenerQuote = {
   preMarketPrice?:            number;
   preMarketChangePercent?:    number;
   fullExchangeName?:          string;
+  trailingPE?:                number;
 };
 
 async function fetchScreener(scrId: string, count = 100): Promise<ScreenerQuote[]> {
@@ -224,12 +227,14 @@ async function fetchShortInterestShares(symbol: string): Promise<number | null> 
   }
 }
 
-// ── Step 3b: Batch-fetch sector + industry via v7/finance/quote ───────────────
-// The predefined screener endpoints don't include sector in their response.
-// v7/finance/quote returns it for up to 100 symbols per call with plain headers.
+// ── Step 3b: Batch-fetch sector + PE ratio via v7/finance/quote ──────────────
+// The predefined screener endpoints don't include sector or PE in their response.
+// v7/finance/quote returns both for up to 100 symbols per call with plain headers.
 
-async function fetchSectorMap(symbols: string[]): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
+type QuoteDetail = { sector?: string; trailingPE?: number };
+
+async function fetchQuoteDetails(symbols: string[]): Promise<Map<string, QuoteDetail>> {
+  const map = new Map<string, QuoteDetail>();
   if (symbols.length === 0) return map;
   const CHUNK = 100;
   for (let i = 0; i < symbols.length; i += CHUNK) {
@@ -239,14 +244,28 @@ async function fetchSectorMap(symbols: string[]): Promise<Map<string, string>> {
       const res = await fetchWithTimeout(url, { headers: YF_PLAIN, cache: 'no-store' }, 8000);
       if (!res.ok) continue;
       const data = await res.json();
-      const quotes: { symbol: string; sector?: string }[] = data?.quoteResponse?.result ?? [];
+      const quotes: { symbol: string; sector?: string; trailingPE?: number }[] = data?.quoteResponse?.result ?? [];
       for (const q of quotes) {
-        if (q.sector) map.set(q.symbol, q.sector);
+        map.set(q.symbol, {
+          sector:     q.sector,
+          trailingPE: typeof q.trailingPE === 'number' && q.trailingPE > 0 ? q.trailingPE : undefined,
+        });
       }
-    } catch { /* proceed without sector for this chunk */ }
+    } catch { /* proceed without details for this chunk */ }
     if (i + CHUNK < symbols.length) await sleep(DELAY_MS);
   }
   return map;
+}
+
+// Returns true when the NYSE pre-market session is active (4:00–9:30 AM ET).
+function isPreMarketNow(): boolean {
+  const etStr = new Date().toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  const [h, m] = etStr.split(':').map(Number);
+  const t = h + m / 60;
+  return t >= 4 && t < 9.5;
 }
 
 // ── Step 4: Fetch news + detect catalyst ─────────────────────────────────────
@@ -466,7 +485,9 @@ function buildFromScreener(
     atr:              atrData.atr,
     marketCap:        quote.marketCap ?? 0,
     floatSharesM:     null,
+    floatRotation:    null,
     shortInterestPct: null,
+    peRatio:          quote.trailingPE ?? null,
     support,
     resistance,
     catalystType:         'Unknown / Sector Move',
@@ -503,10 +524,12 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
     }
   }
 
-  // ── Step 1b: Enrich screener quotes with sector data ─────────────────────────
-  const sectorMap = await fetchSectorMap(allQuotes.map(q => q.symbol));
+  // ── Step 1b: Enrich screener quotes with sector + PE data ────────────────────
+  const detailsMap = await fetchQuoteDetails(allQuotes.map(q => q.symbol));
   for (const q of allQuotes) {
-    if (!q.sector) q.sector = sectorMap.get(q.symbol);
+    const d = detailsMap.get(q.symbol);
+    if (!q.sector && d?.sector) q.sector = d.sector;
+    if (d?.trailingPE != null)  q.trailingPE = d.trailingPE;
   }
 
   // ── Step 2: Quick pre-filter ─────────────────────────────────────────────────
@@ -525,11 +548,18 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
   const pmCandidates: GapCandidate[]  = [];
   const idCandidates: GapCandidate[]  = [];
 
+  // During actual pre-market hours (4–9:30 AM ET) only use live preMarketPrice so
+  // we don't accidentally surface yesterday's regularMarketOpen as a fake gap.
+  // After the market opens, fall back to regularMarketOpen (the gap-at-open price,
+  // stable all day) so the Pre-Market tab keeps showing the morning gap all day.
+  const inPreMarket = isPreMarketNow();
+
   for (const q of screened) {
     const prev = q.regularMarketPreviousClose;
 
-    // Pre-market: live preMarketPrice (4–9:30 AM ET) OR regularMarketOpen (gap at open, rest of day)
-    const pmPrice = q.preMarketPrice ?? q.regularMarketOpen;
+    const pmPrice = inPreMarket
+      ? q.preMarketPrice
+      : (q.preMarketPrice ?? q.regularMarketOpen);
     if (pmPrice && prev > 0) {
       const pmGapPct = ((pmPrice - prev) / prev) * 100;
       if (Math.abs(pmGapPct) >= 2) {
@@ -616,6 +646,9 @@ export async function runGappersScanner(): Promise<{ preMarket: GapperResult[]; 
       const marketCap = sq?.marketCap ?? 0;
       const sharesOut = marketCap > 0 && g.price > 0 ? marketCap / g.price : null;
       g.floatSharesM  = sharesOut ? sharesOut / 1_000_000 : null;
+      g.floatRotation = g.floatSharesM != null && g.floatSharesM > 0
+        ? g.volumeToday / (g.floatSharesM * 1_000_000)
+        : null;
 
       const siShares     = siMap.get(g.symbol) ?? null;
       g.shortInterestPct = siShares !== null && sharesOut !== null && sharesOut > 0
