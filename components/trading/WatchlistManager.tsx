@@ -125,6 +125,7 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
   const [input, setInput]             = useState('');
   const [adding, setAdding]           = useState(false);
   const [addError, setAddError]       = useState('');
+  const [addProgress, setAddProgress] = useState<[number, number] | null>(null); // [done, total]
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [dbLoading, setDbLoading]     = useState(true); // true while fetching from Supabase
   const seeded = useRef(false);
@@ -345,51 +346,68 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
   }
 
   async function handleAdd() {
-    const symbol = input.trim().toUpperCase();
-    if (!symbol) return;
-    if (watchlist.some((w) => w.symbol === symbol)) {
-      setAddError(`${symbol} is already in your watchlist`);
-      return;
-    }
+    const raw = input.trim();
+    if (!raw) return;
+
+    // Support multiple symbols separated by semicolons or commas
+    const symbols = raw
+      .split(/[;,]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s.length > 0 && /^[A-Z.^-]{1,10}$/.test(s));
+
+    if (symbols.length === 0) return;
 
     setAdding(true);
     setAddError('');
+    setAddProgress(symbols.length > 1 ? [0, symbols.length] : null);
 
-    try {
-      const res = await fetch(`/api/stocks/analysis?symbol=${symbol}`);
-      const data = await res.json();
-      if (data.error || data.price === 0) {
-        setAddError(`${symbol} not found — check the ticker symbol`);
-        setAdding(false);
-        return;
+    const errors: string[] = [];
+
+    for (let i = 0; i < symbols.length; i++) {
+      const symbol = symbols[i];
+      if (symbols.length > 1) setAddProgress([i + 1, symbols.length]);
+
+      if (watchlist.some((w) => w.symbol === symbol)) {
+        errors.push(`${symbol} already in list`);
+        continue;
       }
 
-      const newEntry: WatchlistEntry = { symbol, name: data.name ?? symbol, type: 'stock' };
+      try {
+        const res = await fetch(`/api/stocks/analysis?symbol=${symbol}`);
+        const data = await res.json();
+        if (data.error || data.price === 0) {
+          errors.push(`${symbol} not found`);
+          continue;
+        }
 
-      // Guard: don't add if already present; keep localStorage in sync
-      setWatchlist((prev) => {
-        if (prev.some((w) => w.symbol === symbol)) return prev;
-        const next = [...prev, newEntry];
-        try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-        return next;
-      });
+        const newEntry: WatchlistEntry = { symbol, name: data.name ?? symbol, type: 'stock' };
 
-      // Persist to Supabase (fire-and-forget)
-      void (async () => {
-        try {
-          await createClient().from('watchlist').upsert(
-            { device_id: getDeviceId(), symbol: newEntry.symbol, name: newEntry.name, type: newEntry.type, added_at: new Date().toISOString() },
-            { onConflict: 'device_id,symbol' },
-          );
-        } catch { /* Supabase optional */ }
-      })();
+        setWatchlist((prev) => {
+          if (prev.some((w) => w.symbol === symbol)) return prev;
+          const next = [...prev, newEntry];
+          try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+          return next;
+        });
 
-      setDataMap((prev) => ({ ...prev, [symbol]: data }));
-      setLoadMap((prev) => ({ ...prev, [symbol]: 'done' }));
-      setInput('');
-    } catch {
-      setAddError('Failed to fetch data — try again');
+        void (async () => {
+          try {
+            await createClient().from('watchlist').upsert(
+              { device_id: getDeviceId(), symbol: newEntry.symbol, name: newEntry.name, type: newEntry.type, added_at: new Date().toISOString() },
+              { onConflict: 'device_id,symbol' },
+            );
+          } catch { /* Supabase optional */ }
+        })();
+
+        setDataMap((prev) => ({ ...prev, [symbol]: data }));
+        setLoadMap((prev) => ({ ...prev, [symbol]: 'done' }));
+      } catch {
+        errors.push(`${symbol}: fetch failed`);
+      }
     }
+
+    setInput('');
+    setAddProgress(null);
+    setAddError(errors.length > 0 ? errors.join(' · ') : '');
     setAdding(false);
   }
 
@@ -644,26 +662,31 @@ export function WatchlistManager({ defaults }: { defaults: WatchlistItem[] }) {
             type="text"
             value={input}
             onChange={(e) => { setInput(e.target.value.toUpperCase()); setAddError(''); }}
-            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-            placeholder="Add ticker e.g. AMZN"
+            onKeyDown={(e) => e.key === 'Enter' && !adding && handleAdd()}
+            placeholder="e.g. AMZN; TSLA; NVDA"
             className="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 focus:border-blue-500 focus:outline-none uppercase"
           />
           <button
             onClick={handleAdd}
             disabled={adding || !input.trim()}
-            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 whitespace-nowrap"
           >
             {adding ? (
-              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
+              <>
+                <svg className="h-4 w-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                {addProgress ? `${addProgress[0]}/${addProgress[1]}` : 'Adding…'}
+              </>
             ) : (
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
+              <>
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add
+              </>
             )}
-            Add
           </button>
 
           {/* Refresh All */}
